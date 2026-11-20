@@ -1,6 +1,6 @@
 {
   "name": "dsh-use-firefox",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Use your real Firefox from DeepSeek Harness Desktop through a signed MV3 extension and a token-authenticated local bridge.",
   "type": "module",
   "main": "lib/index.js",

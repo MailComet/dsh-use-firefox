@@ -20,9 +20,10 @@ window.__ModuleLoader__.load({
     const POLL_MS = 2000
 
     const CSS = `
-.dshuf-dock { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 0 8px; min-width: 0; }
-.dshuf-summary { width: min(100%, var(--dsh-chat-content-width, 920px)); font-size: 11px; color: var(--dsw-alias-label-secondary, #6b7280); padding: 0 2px; }
-.dshuf-dock .dshuf-card { width: min(100%, var(--dsh-chat-content-width, 920px)); max-width: 100%; }
+.dshuf-dock { display: flex; flex-direction: column; gap: 6px; width: min(100%, var(--dsh-chat-content-width, 920px)); margin: 0 auto 8px; min-width: 0; }
+.dshuf-summary { font-size: 11px; color: var(--dsw-alias-label-secondary, #6b7280); padding: 0 2px; }
+.dshuf-list { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.dshuf-list .dshuf-card { flex: 1 1 280px; width: auto; max-width: 340px; }
 .dshuf-card { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); cursor: pointer; box-sizing: border-box; }
 .dshuf-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 35%, var(--dsw-alias-border-secondary, #e5e7eb)); }
 .dshuf-card.editing { align-items: stretch; background: var(--dsw-alias-bg-elevated, #fff); }
@@ -289,7 +290,7 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'dshuf-card-head' },
-            h('span', { className: 'dshuf-card-title' }, item.label || `网页注释 ${item.seq}`),
+            h('span', { className: 'dshuf-card-title' }, item.label || (Number.isFinite(Number(item.seq)) ? `网页注释 ${item.seq}` : '网页注释')),
             h('button', {
               type: 'button',
               className: 'dshuf-edit',
@@ -433,12 +434,16 @@ window.__ModuleLoader__.load({
         'div',
         { className: 'dshuf-dock' },
         h('div', { className: 'dshuf-summary' }, `${cards.length} 条注释`),
-        cards.map((item) => h(AnnotationCard, {
-          key: item.id,
-          item,
-          onSaved: updateCard,
-          onDeleted: removeCard,
-        })),
+        h(
+          'div',
+          { className: 'dshuf-list' },
+          cards.map((item) => h(AnnotationCard, {
+            key: item.id,
+            item,
+            onSaved: updateCard,
+            onDeleted: removeCard,
+          })),
+        ),
       )
     }
 
