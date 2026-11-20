@@ -20,9 +20,9 @@ window.__ModuleLoader__.load({
     const POLL_MS = 2000
 
     const CSS = `
-.dshuf-dock { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 8px; min-width: 0; }
-.dshuf-summary { font-size: 11px; color: var(--dsw-alias-label-secondary, #6b7280); padding: 0 2px; }
-.dshuf-dock .dshuf-card { width: 340px; max-width: 100%; }
+.dshuf-dock { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 0 8px; min-width: 0; }
+.dshuf-summary { width: min(100%, var(--dsh-chat-content-width, 920px)); font-size: 11px; color: var(--dsw-alias-label-secondary, #6b7280); padding: 0 2px; }
+.dshuf-dock .dshuf-card { width: min(100%, var(--dsh-chat-content-width, 920px)); max-width: 100%; }
 .dshuf-card { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); cursor: pointer; box-sizing: border-box; }
 .dshuf-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 35%, var(--dsw-alias-border-secondary, #e5e7eb)); }
 .dshuf-card.editing { align-items: stretch; background: var(--dsw-alias-bg-elevated, #fff); }
