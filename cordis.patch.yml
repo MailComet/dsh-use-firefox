@@ -1,0 +1,15 @@
+# dsh-use-firefox: DSH host plugin + Firefox MV3 extension.
+# The extension connects to a token-authenticated loopback WebSocket bridge.
+- insert:
+    - id: use-firefox
+      name: dsh-use-firefox
+      config:
+        home: ''
+        mode: full
+        bridgePort: 39271
+        groupTitle: DSH
+        groupColor: blue
+        maxSnapshotChars: 20000
+        requestTimeoutMs: 60000
+        annotationTimeoutMs: 120000
+        audit: true

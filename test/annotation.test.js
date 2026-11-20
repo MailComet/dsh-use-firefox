@@ -1,0 +1,159 @@
+import assert from 'node:assert/strict'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import test from 'node:test'
+import { createRuntime } from '../src/runtime.js'
+import { registerAnnotationRoutes } from '../src/routes.js'
+
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+function fakeContext() {
+  return { logger: { info() {}, warn() {}, debug() {} }, get() { return undefined } }
+}
+
+async function makeRuntime(t) {
+  const home = await mkdtemp(join(tmpdir(), 'dshuf-annotation-'))
+  const runtime = await createRuntime(fakeContext(), { home, mode: 'full', bridgePort: 0, audit: false })
+  t.after(async () => {
+    await runtime.dispose()
+    await rm(home, { recursive: true, force: true })
+  })
+  return { home, runtime }
+}
+
+function payload(overrides = {}) {
+  return {
+    kind: 'element',
+    comment: '这个按钮太靠右了',
+    selector: '#save',
+    tag: 'button',
+    text: '保存',
+    page: { url: 'https://example.com/form', title: '表单' },
+    details: { color: 'rgb(17, 24, 39)' },
+    rect: { x: 10, y: 20, width: 100, height: 30 },
+    pageRect: { x: 10, y: 120, width: 100, height: 30 },
+    viewport: { width: 1280, height: 800, dpr: 1 },
+    imageDataUrl: PNG,
+    ...overrides,
+  }
+}
+
+test('user annotations are queued, acknowledged and readable by the client', async (t) => {
+  const { home, runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const created = await runtime.createAnnotation(null, payload())
+  assert.equal(created.seq, 1)
+  assert.equal(created.label, '网页注释 1')
+  assert.equal(created.queued, true)
+  assert.equal(created.sessionId, 'session-a')
+
+  const image = await readFile(join(home, 'annotations', `${created.id}.png`))
+  assert.ok(image.length > 0)
+
+  const first = runtime.queueAnnotations('session-a')
+  assert.equal(first.length, 1)
+  assert.equal(first[0].label, '网页注释 1')
+  assert.equal(first[0].comment, '这个按钮太靠右了')
+  assert.match(first[0].imageUrl, /^\/ext\/use-firefox\/image\?id=/)
+
+  // Polling before the client acknowledges must keep returning the item.
+  const repeated = runtime.queueAnnotations('session-a')
+  assert.equal(repeated.length, 1)
+
+  runtime.ackAnnotations([created.id])
+  assert.equal(runtime.queueAnnotations('session-a').length, 0)
+  assert.equal(runtime.annotationItem(created.id).label, '网页注释 1')
+  assert.match(runtime.annotationImage(created.id), /annotations\/.*\.png$/)
+})
+
+test('queued annotations bind to the first focused session and filter others', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  const created = await runtime.createAnnotation(null, payload({ comment: '没有会话' }))
+  assert.equal(created.sessionId, null)
+  assert.equal(runtime.queueAnnotations('session-b').length, 1)
+  assert.equal(runtime.queueAnnotations('session-c').length, 0)
+})
+
+test('pre-step attaches one user context for each annotation mention', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const created = await runtime.createAnnotation(null, payload())
+  runtime.queueAnnotations('session-a')
+  runtime.ackAnnotations([created.id])
+
+  const user = {
+    role: 'user',
+    content: [{ type: 'text', text: `请看一下\n@[网页注释 1](dsh-anno:${created.id})` }],
+  }
+  const messages = await runtime.prepareAnnotationMentions([user])
+  assert.equal(messages.length, 2)
+  assert.equal(messages[0], user)
+  const context = messages[1]
+  assert.equal(context.role, 'user')
+  const text = context.content.map((block) => block.text).join('\n')
+  assert.match(text, /【网页注释】/)
+  assert.match(text, /这个按钮太靠右了/)
+  assert.match(text, /https:\/\/example\.com\/form/)
+  assert.match(text, /annotations\/.*\.png/)
+
+  const again = await runtime.prepareAnnotationMentions([...messages])
+  assert.equal(again.length, messages.length)
+  assert.equal(runtime.annotationItem(created.id).label, '网页注释 1')
+})
+
+test('annotation routes expose queue, ack, focus, item and image', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const created = await runtime.createAnnotation(null, payload())
+
+  const routes = new Map()
+  const dispose = registerAnnotationRoutes({
+    register(route) {
+      routes.set(route.path, route)
+      return () => routes.delete(route.path)
+    },
+  }, runtime)
+
+  async function call(path, { method = 'GET', url = path, body = '' } = {}) {
+    const handler = routes.get(`/ext/use-firefox${path}`)
+    assert.ok(handler, `missing route ${path}`)
+    const request = {
+      method,
+      url,
+      async *[Symbol.asyncIterator]() {
+        if (body) yield Buffer.from(body)
+      },
+    }
+    let status = 0
+    let headers = {}
+    let responseBody = Buffer.alloc(0)
+    await handler.handler(request, {
+      writeHead(nextStatus, nextHeaders) { status = nextStatus; headers = nextHeaders },
+      end(chunk) { if (chunk) responseBody = Buffer.concat([responseBody, Buffer.from(chunk)]) },
+    })
+    return { status, headers, body: responseBody }
+  }
+
+  const queue = await call('/queue', { url: '/ext/use-firefox/queue?session=session-a' })
+  assert.equal(queue.status, 200)
+  const items = JSON.parse(queue.body.toString()).items
+  assert.equal(items.length, 1)
+
+  const item = await call('/item', { url: `/ext/use-firefox/item?id=${created.id}` })
+  assert.equal(JSON.parse(item.body.toString()).item.id, created.id)
+
+  const image = await call('/image', { url: `/ext/use-firefox/image?id=${created.id}` })
+  assert.equal(image.status, 200)
+  assert.equal(image.headers['content-type'], 'image/png')
+  assert.ok(image.body.length > 0)
+
+  const focus = await call('/focus', { method: 'POST', body: JSON.stringify({ sessionId: 'session-b' }) })
+  assert.equal(focus.status, 200)
+
+  const ack = await call('/queue/ack', { method: 'POST', body: JSON.stringify({ ids: [created.id] }) })
+  assert.equal(ack.status, 200)
+  assert.equal(runtime.queueAnnotations('session-b').length, 0)
+  dispose()
+  assert.equal(routes.size, 0)
+})

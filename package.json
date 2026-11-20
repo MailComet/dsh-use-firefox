@@ -1,0 +1,68 @@
+{
+  "name": "dsh-use-firefox",
+  "version": "0.2.0",
+  "description": "Use your real Firefox from DeepSeek Harness Desktop through a signed MV3 extension and a token-authenticated local bridge.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./client": "./client.js"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "extension",
+    "client.js"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "firefox",
+    "firefox-extension",
+    "browser-automation"
+  ],
+  "license": "MIT",
+  "engines": {
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0",
+    "node": ">=24"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.1.0",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.5",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.5",
+    "@deepseek-ai/schemastery": "~3.19.0",
+    "@deepseek-ai/dsh-host-webserver": "0.2.2-rc.5"
+  },
+  "author": "MailComet",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MailComet/dsh-use-firefox.git"
+  },
+  "homepage": "https://github.com/MailComet/dsh-use-firefox#readme",
+  "bugs": {
+    "url": "https://github.com/MailComet/dsh-use-firefox/issues"
+  }
+}
