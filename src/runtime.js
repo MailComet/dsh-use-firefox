@@ -50,6 +50,10 @@ function parseDataUrl(dataUrl) {
   return { mediaType, buffer }
 }
 
+function normalizeAnnotationMode(value) {
+  return ['element', 'text', 'region'].includes(value) ? value : 'element'
+}
+
 function annotationId() {
   const now = new Date()
   const stamp = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
@@ -76,8 +80,9 @@ export class Runtime {
     this.annotations = new Map()
     this.annotationQueue = []
     this.focusedSessionId = null
+    this.annotationMode = 'element'
     this.started = false
-    this.pluginVersion = '0.2.3'
+    this.pluginVersion = '0.3.0'
     this.groupTitle = config.groupTitle || 'DSH'
     this.groupColor = config.groupColor || 'blue'
     this.requestTimeoutMs = Number(config.requestTimeoutMs || 60_000)
@@ -90,6 +95,7 @@ export class Runtime {
     this.token = await ensureToken(this.home)
     const persisted = await readState(this.home)
     this.mode = normalizeMode(persisted.mode, normalizeMode(this.config.mode, 'full'))
+    this.annotationMode = normalizeAnnotationMode(persisted.annotationMode)
     await this.loadAnnotations()
     this.logger.info?.(`use-firefox data home: ${this.home}`)
     return this
@@ -127,6 +133,9 @@ export class Runtime {
       .filter((record) => !record.sent && !record.delivered)
       .sort((left, right) => (Number(left.seq) || 0) - (Number(right.seq) || 0))
       .map((record) => record.id)
+    this.annotationSeq = this.annotationQueue.length > 0
+      ? Math.max(...this.annotationQueue.map((id) => Number(this.annotations.get(id)?.seq) || 0))
+      : 0
   }
 
   async persistAnnotation(record) {
@@ -170,6 +179,7 @@ export class Runtime {
         paused: this.paused,
         groupTitle: this.groupTitle,
         groupColor: this.groupColor,
+        annotationMode: this.annotationMode,
         features: ['tabs', 'tabGroups', 'snapshot', 'actions', 'annotation', 'modes'],
       }),
       onEvent: (client, event, data) => this.handleExtensionEvent(client, event, data),
@@ -245,6 +255,15 @@ export class Runtime {
     return next
   }
 
+  setAnnotationMode(mode, source = 'user') {
+    const next = normalizeAnnotationMode(mode)
+    this.annotationMode = next
+    void this.persistState()
+    this.bridge?.broadcast('annotation-mode', { mode: next, source })
+    void this.audit({ type: 'annotation-mode', mode: next, source })
+    return next
+  }
+
   setPaused(paused, source = 'user') {
     this.paused = Boolean(paused)
     this.bridge?.broadcast('paused', { paused: this.paused, source })
@@ -255,7 +274,7 @@ export class Runtime {
   async persistState() {
     try {
       const current = await readState(this.home)
-      await writeState(this.home, { ...current, mode: this.mode, updatedAt: new Date().toISOString() })
+      await writeState(this.home, { ...current, mode: this.mode, annotationMode: this.annotationMode, updatedAt: new Date().toISOString() })
     } catch (error) {
       this.logger.warn?.(`use-firefox state write failed: ${error.message}`)
     }
@@ -345,6 +364,7 @@ export class Runtime {
       pageRect: payload.pageRect ?? null,
       viewport: payload.viewport ?? null,
       imagePath,
+      tabId: Number.isInteger(payload.tabId) ? payload.tabId : null,
       requestId: payload.requestId ?? null,
       delivered: false,
       inComposer: false,
@@ -425,6 +445,10 @@ export class Runtime {
     this.focusedSessionId = value
   }
 
+  tokenPath() {
+    return tokenPath(this.home)
+  }
+
   annotationItem(id) {
     const record = this.annotations.get(String(id || ''))
     return record ? this.annotationView(record) : null
@@ -482,6 +506,17 @@ export class Runtime {
       })
       output.push(context)
       this.annotationQueue = this.annotationQueue.filter((id) => !records.some((record) => record.id === id))
+      const tabs = [...new Set(records.map((record) => Number(record.tabId)).filter((id) => Number.isInteger(id) && id > 0))]
+      if (tabs.length > 0 && this.bridge) {
+        void Promise.resolve()
+          .then(() => this.bridge.request('annotation.clear', {
+            ids: records.map((record) => record.id),
+            tabs,
+          }, { timeoutMs: 10_000 }))
+          .catch((error) => this.logger.debug?.(`use-firefox marker clear failed: ${error.message}`))
+      }
+      const unsent = [...this.annotations.values()].filter((record) => !record.sent && !record.delivered)
+      this.annotationSeq = unsent.length > 0 ? Math.max(...unsent.map((record) => Number(record.seq) || 0)) : 0
       void this.audit({ type: 'annotation-context', ids: records.map((record) => record.id) })
     }
     return output
@@ -774,12 +809,23 @@ export class Runtime {
       mode: this.mode,
       modeLabel: MODE_LABELS[this.mode],
       paused: this.paused,
+      annotationMode: this.annotationMode,
       groupTitle: this.groupTitle,
       groupColor: this.groupColor,
       home: this.home,
       tokenPath: tokenPath(this.home),
       dataHome: this.home,
       pluginVersion: this.pluginVersion,
+    }
+  }
+
+  overview() {
+    const status = this.status()
+    return {
+      ...status,
+      annotationMode: this.annotationMode,
+      annotationCount: this.annotations.size,
+      pendingAnnotations: this.annotationQueue.length,
     }
   }
 

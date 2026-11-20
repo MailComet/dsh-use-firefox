@@ -1523,6 +1523,20 @@ const ANNO_ICONS = {
         return waitFor(params)
       case 'annotation.start':
         return startAnnotation(params)
+      case 'annotation.clear': {
+        const ids = new Set((params.ids || []).map(String))
+        let cleared = 0
+        for (const id of [...annoMarkers.keys()]) {
+          if (!ids.has(id)) continue
+          const record = annoMarkers.get(id)
+          if (record?.marker) record.marker.remove()
+          annoMarkers.delete(id)
+          cleared += 1
+        }
+        if (anno?.editingId && ids.has(anno.editingId)) cleanupDraft(false)
+        positionAnnoMarkers()
+        return { cleared }
+      }
       case 'annotation.cancel':
         return cancelAnnotation()
       case 'ping':

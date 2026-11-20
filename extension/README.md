@@ -15,4 +15,6 @@ This extension is the browser half of the `dsh-use-firefox` DSH plugin. It conne
 - The extension connects only to `ws://127.0.0.1:<port>/ext/bridge` and sends the host token in the first `hello` frame.
 - Page snapshots, actions, and annotation data go to the DSH host plugin on the same machine. There is no cloud service and no telemetry.
 - The host plugin writes audit records and screenshots under `~/.dsh/browser/`. The extension does not upload page content anywhere else.
-- The annotation UI is injected into the page only while the user is annotating. Confirming an annotation puts a chip into the DSH composer; the message is sent only when the user submits it.
+- The toolbar popup is an introduction panel. First-time connection fields appear there only while the extension is not connected; connection, mode, and annotation settings live in DSH → Plugins → dsh-use-firefox.
+- A small hotkey content script runs on http(s) pages only to listen for Shift+A then N; it does not read page content. It asks the background to start annotation mode, and the full annotation UI is injected on demand.
+- Confirming an annotation puts a chip into the DSH composer; the message is sent only when the user submits it. Sent historical cards are read-only.

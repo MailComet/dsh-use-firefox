@@ -16,6 +16,11 @@ window.__ModuleLoader__.load({
     const ITEM_PATH = '/ext/use-firefox/item'
     const UPDATE_PATH = '/ext/use-firefox/update'
     const DELETE_PATH = '/ext/use-firefox/delete'
+    const OVERVIEW_PATH = '/ext/use-firefox/overview'
+    const MODE_PATH = '/ext/use-firefox/mode'
+    const PAUSED_PATH = '/ext/use-firefox/paused'
+    const ANNOTATION_MODE_PATH = '/ext/use-firefox/annotation-mode'
+    const TOKEN_PATH = '/ext/use-firefox/token'
     const WIRE = /@\[((?:\\.|[^\\\]\n])*)\]\(dsh-anno:([A-Za-z0-9_-]+)\)/uy
     const POLL_MS = 2000
 
@@ -47,7 +52,42 @@ window.__ModuleLoader__.load({
 .dshuf-edit-actions button:disabled { opacity: .5; cursor: default; }
 .dshuf-card-error { color: #dc2626; font-size: 11px; white-space: pre-wrap; }
 .dshuf-chip { display: inline; max-width: 100%; margin: 0 2px; color: var(--dsw-alias-state-business-primary, #2563eb); font-weight: 500; white-space: inherit; overflow-wrap: anywhere; }
-.dshuf-chip-deleted { color: var(--dsw-alias-label-secondary, #6b7280); text-decoration: line-through; }
+.dshuf-chip-deleted { color: var(--dsw-alias-label-secondary, #6b7280); text-decoration: line-through; }.dshuf-mode-wrap { position: relative; display: inline-flex; align-items: center; }
+.dshuf-mode-button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 999px; background: transparent; color: var(--dsw-alias-label-secondary, #6b7280); font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer; }
+.dshuf-mode-button:hover { color: var(--dsw-alias-label-primary, #111827); background: var(--dsw-alias-bg-secondary, #f8fafc); }
+.dshuf-mode-name { font-weight: 600; }
+.dshuf-mode-value { color: var(--dsw-alias-state-business-primary, #2563eb); }
+.dshuf-stop { border: 1px solid color-mix(in srgb, #dc2626 30%, transparent); border-radius: 999px; background: color-mix(in srgb, #dc2626 7%, transparent); color: #dc2626; font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
+.dshuf-stop:hover { background: color-mix(in srgb, #dc2626 12%, transparent); }
+.dshuf-stop.paused { color: #1f9d63; border-color: color-mix(in srgb, #1f9d63 35%, transparent); background: color-mix(in srgb, #1f9d63 8%, transparent); }
+.dshuf-stop:disabled { opacity: .5; cursor: default; }
+.dshuf-mode-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; display: flex; flex-direction: column; min-width: 190px; padding: 5px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); box-shadow: 0 12px 32px rgba(15, 23, 42, .18); }
+.dshuf-mode-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary, #111827); font: inherit; font-size: 12px; padding: 5px 8px; cursor: pointer; text-align: left; }
+.dshuf-mode-item small { color: var(--dsw-alias-label-secondary, #6b7280); font-size: 10px; }
+.dshuf-mode-item:hover, .dshuf-mode-item.active { background: var(--dsw-alias-bg-secondary, #f8fafc); }
+.dshuf-mode-item.active { color: var(--dsw-alias-state-business-primary, #2563eb); }
+.dshuf-jump { border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-primary, #111827); font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+.dshuf-jump:hover { background: var(--dsw-alias-bg-secondary, #f8fafc); }
+.dshuf-settings { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 12px; }
+.dshuf-settings-card { border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; padding: 10px 12px; background: var(--dsw-alias-bg-elevated, #fff); }
+.dshuf-settings-card h3 { margin: 0 0 7px; font-size: 13px; color: var(--dsw-alias-label-primary, #111827); }
+.dshuf-setting-line { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 12px; padding: 2px 0; color: var(--dsw-alias-label-secondary, #6b7280); }
+.dshuf-setting-line strong { color: var(--dsw-alias-label-primary, #111827); font-weight: 500; text-align: right; word-break: break-all; }
+.dshuf-setting-line code { font: 11px ui-monospace, "JetBrains Mono", monospace; color: var(--dsw-alias-label-primary, #111827); }
+.dshuf-setting-actions { margin-top: 7px; }
+.dshuf-setting-actions button { border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary, #111827); font: inherit; font-size: 11px; padding: 3px 9px; cursor: pointer; }
+.dshuf-setting-actions button.danger { color: #dc2626; border-color: color-mix(in srgb, #dc2626 28%, transparent); }
+.dshuf-setting-actions button.primary { color: #fff; background: var(--dsw-alias-state-business-primary, #2563eb); border-color: transparent; }
+.dshuf-choice-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.dshuf-choice { border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary, #111827); font: inherit; font-size: 11px; padding: 3px 8px; cursor: pointer; }
+.dshuf-choice.active { color: var(--dsw-alias-state-business-primary, #2563eb); border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 45%, transparent); background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 8%, transparent); }
+.dshuf-settings-hint { margin: 6px 0 0; color: var(--dsw-alias-label-secondary, #6b7280); font-size: 11px; line-height: 1.45; }
+.dshuf-settings-error { margin: 0; color: #dc2626; font-size: 11px; }
+
+.dshuf-history-details { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); }
+.dshuf-detail-row { display: flex; gap: 6px; font-size: 11px; line-height: 1.4; }
+.dshuf-detail-key { flex: 0 0 58px; color: var(--dsw-alias-label-secondary, #6b7280); }
+.dshuf-detail-value { min-width: 0; color: var(--dsw-alias-label-primary, #111827); overflow-wrap: anywhere; }
 `
 
     function unescapeLabel(label) {
@@ -133,6 +173,249 @@ window.__ModuleLoader__.load({
       })
     }
 
+    const MODE_OPTIONS = [
+      ['full', '完全访问', '浏览器动作直接执行，不弹审批'],
+      ['auto', '自动检查', '敏感动作询问'],
+      ['ask', '全部询问', '每个改变页面的动作都询问'],
+      ['readonly', '只读取', '只读、截图和注释'],
+    ]
+    const ANNOTATION_MODE_OPTIONS = [
+      ['element', '点选元素'],
+      ['text', '选中文字'],
+      ['region', '框选区域'],
+    ]
+
+    async function getOverview() {
+      const body = await requestJson(OVERVIEW_PATH)
+      return body
+    }
+
+    async function postOverview(path, payload) {
+      const body = await requestJson(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return body
+    }
+
+    function SettingsJump({ subject }) {
+      if (subject?.kind !== 'bundle' || subject.pkg?.name !== 'dsh-use-firefox') return null
+      return h('button', {
+        type: 'button',
+        className: 'dshuf-jump',
+        onClick: () => document.querySelector('.dshuf-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      }, 'Firefox 插件设置')
+    }
+
+    function SettingsPage({ view }) {
+      const [data, setData] = React.useState(null)
+      const [error, setError] = React.useState('')
+      const [busy, setBusy] = React.useState(false)
+      const [notice, setNotice] = React.useState('')
+
+      React.useEffect(() => {
+        if (view !== 'page') return undefined
+        let live = true
+        const load = async () => {
+          try {
+            const next = await getOverview()
+            if (live) { setData(next); setError('') }
+          } catch (cause) {
+            if (live) setError(cause?.message || String(cause))
+          }
+        }
+        void load()
+        const timer = setInterval(() => void load(), 4000)
+        return () => { live = false; clearInterval(timer) }
+      }, [view])
+
+      if (view !== 'page') return null
+
+      const act = async (path, payload) => {
+        setBusy(true)
+        setError('')
+        try {
+          const next = await postOverview(path, payload)
+          setData(next)
+          setNotice('')
+        } catch (cause) {
+          setError(cause?.message || String(cause))
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      const clients = Array.isArray(data?.clients) ? data.clients : []
+      const connected = clients.length > 0
+      const choices = (options, current, onPick) => h(
+        'span',
+        { className: 'dshuf-choice-row' },
+        options.map(([value, label]) => h('button', {
+          type: 'button',
+          key: value,
+          className: `dshuf-choice${current === value ? ' active' : ''}`,
+          disabled: busy,
+          onClick: () => onPick(value),
+        }, label)),
+      )
+
+      return h(
+        'div',
+        { className: 'dshuf-settings' },
+        error ? h('p', { className: 'dshuf-settings-error' }, error) : null,
+        notice ? h('p', { className: 'dshuf-settings-hint' }, notice) : null,
+        h(
+          'section',
+          { className: 'dshuf-settings-card' },
+          h('h3', null, '状态'),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, 'Firefox'), h('strong', null, connected ? `已连接 · ${clients.length} 个客户端` : '未连接')),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, '插件 / 扩展'), h('strong', null, `${data?.pluginVersion || '—'} / ${clients[0]?.extensionVersion || '—'}`)),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, '桥'), h('strong', null, data?.running ? `运行中 · ${data.port}` : '未运行')),
+          h('div', { className: 'dshuf-setting-actions' },
+            h('button', { type: 'button', className: data?.paused ? 'primary' : 'danger', disabled: busy || !data, onClick: () => act(PAUSED_PATH, { paused: !data?.paused }) }, data?.paused ? '恢复' : '急停'),
+          ),
+        ),
+        h(
+          'section',
+          { className: 'dshuf-settings-card' },
+          h('h3', null, '连接'),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, '桥端口'), h('strong', null, String(data?.port || 39271))),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, '标签组'), h('strong', null, data?.groupTitle || 'DSH')),
+          h('div', { className: 'dshuf-setting-line' }, h('span', null, '令牌文件'), h('code', null, data?.tokenPath || '~/.dsh/browser/ext-token')),
+          h('div', { className: 'dshuf-setting-actions' },
+            h('button', { type: 'button', onClick: async () => {
+              try {
+                const token = await requestJson(TOKEN_PATH)
+                await navigator.clipboard.writeText(token.token)
+                setError('')
+                setNotice('令牌已复制；首次连接时粘贴到 Firefox 工具栏弹窗。')
+              } catch (cause) {
+                setError(cause?.message || String(cause))
+              }
+            } }, '复制连接令牌'),
+          ),
+          h('p', { className: 'dshuf-settings-hint' }, 'Firefox 首次连接时，在工具栏弹窗的“首次连接”里填端口和令牌；连接后弹窗只显示功能介绍。'),
+        ),
+        h(
+          'section',
+          { className: 'dshuf-settings-card' },
+          h('h3', null, '权限模式'),
+          choices(MODE_OPTIONS, data?.mode, (mode) => act(MODE_PATH, { mode })),
+          h('p', { className: 'dshuf-settings-hint' }, MODE_OPTIONS.find(([value]) => value === data?.mode)?.[2] || ''),
+        ),
+        h(
+          'section',
+          { className: 'dshuf-settings-card' },
+          h('h3', null, '注释'),
+          choices(ANNOTATION_MODE_OPTIONS, data?.annotationMode, (mode) => act(ANNOTATION_MODE_PATH, { mode })),
+          h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Shift + A，再按 N 开始注释；Esc 退出。每次发送后，网页标记清除，下一批注释从 1 重新编号。'),
+        ),
+        h(
+          'section',
+          { className: 'dshuf-settings-card' },
+          h('h3', null, '工作区'),
+          h('p', { className: 'dshuf-settings-hint' }, 'Agent 打开的标签页会进入 Firefox 原生标签组 “' + (data?.groupTitle || 'DSH') + '”。组外个人标签页不会被 Agent 操作。'),
+        ),
+      )
+    }
+
+    function ModeControl() {
+      const [data, setData] = React.useState(null)
+      const [open, setOpen] = React.useState(false)
+      const [busy, setBusy] = React.useState(false)
+      const [error, setError] = React.useState('')
+
+      React.useEffect(() => {
+        let live = true
+        const load = async () => {
+          try {
+            const next = await getOverview()
+            if (live) setData(next)
+          } catch { /* keep the last value */ }
+        }
+        void load()
+        const timer = setInterval(() => void load(), 6000)
+        const onVisible = () => { if (document.visibilityState !== 'hidden') void load() }
+        window.addEventListener('focus', onVisible)
+        return () => { live = false; clearInterval(timer); window.removeEventListener('focus', onVisible) }
+      }, [])
+
+      React.useEffect(() => {
+        if (!open) return undefined
+        const close = (event) => {
+          if (event.target?.closest?.('.dshuf-mode-wrap')) return
+          setOpen(false)
+        }
+        document.addEventListener('click', close, true)
+        return () => document.removeEventListener('click', close, true)
+      }, [open])
+
+      const pick = async (mode) => {
+        setBusy(true)
+        setError('')
+        try {
+          const next = await postOverview(MODE_PATH, { mode })
+          setData(next)
+          setOpen(false)
+        } catch (cause) {
+          setError(cause?.message || String(cause))
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      const togglePause = async (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        if (busy || !data) return
+        setBusy(true)
+        setError('')
+        try {
+          const next = await postOverview(PAUSED_PATH, { paused: !data.paused })
+          setData(next)
+        } catch (cause) {
+          setError(cause?.message || String(cause))
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      if (!data?.mode) return null
+      const label = data.modeLabel || MODE_OPTIONS.find(([value]) => value === data.mode)?.[1] || data.mode
+      return h(
+        'span',
+        { className: 'dshuf-mode-wrap' },
+        h('button', {
+          type: 'button',
+          className: 'dshuf-mode-button',
+          title: '设置 Firefox 插件的访问模式',
+          onClick: (event) => { event.preventDefault(); event.stopPropagation(); setOpen((value) => !value) },
+          onMouseDown: (event) => event.preventDefault(),
+        }, h('span', { className: 'dshuf-mode-name' }, 'Firefox'), h('span', { className: 'dshuf-mode-value' }, label)),
+        h('button', {
+          type: 'button',
+          className: `dshuf-stop${data.paused ? ' paused' : ''}`,
+          title: data.paused ? '恢复 Firefox 操作' : '急停 Firefox 操作',
+          disabled: busy,
+          onClick: togglePause,
+          onMouseDown: (event) => event.preventDefault(),
+        }, data.paused ? '恢复' : '急停'),
+        open ? h(
+          'span',
+          { className: 'dshuf-mode-menu' },
+          MODE_OPTIONS.map(([mode, text, hint]) => h('button', {
+            type: 'button',
+            key: mode,
+            className: `dshuf-mode-item${data.mode === mode ? ' active' : ''}`,
+            disabled: busy,
+            onClick: (event) => { event.preventDefault(); event.stopPropagation(); void pick(mode) },
+          }, h('span', null, text), h('small', null, hint))),
+          error ? h('span', { className: 'dshuf-card-error' }, error) : null,
+        ) : null,
+      )
+    }
+
     function composeDraft(state, items) {
       if (!state || state.phase !== 'plain' || state.claim !== undefined) return undefined
       const text = typeof state.draft === 'string' ? state.draft : ''
@@ -201,8 +484,30 @@ window.__ModuleLoader__.load({
       return [...map.values()]
     }
 
-    function AnnotationCard({ item, history = false, onSaved, onDeleted }) {
+    const DETAIL_LABELS = {
+      color: '文字颜色', backgroundColor: '背景颜色', opacity: '透明度', fontFamily: '字体',
+      fontSize: '字号', fontWeight: '字重', borderColor: '边框颜色', borderRadius: '圆角',
+      borderWidth: '边框宽度', width: '宽度', height: '高度', display: '显示', lineHeight: '行高',
+      padding: '内边距', margin: '外边距',
+    }
+
+    function annotationDetailRows(item) {
+      const rows = []
+      if (item.page?.url) rows.push(['页面', `${item.page.title || ''}${item.page.title ? ' — ' : ''}${item.page.url}`])
+      if (item.selector) rows.push(['元素', `${item.tag || ''} ${item.selector}`])
+      if (item.createdAt) rows.push(['时间', new Date(item.createdAt).toLocaleString()])
+      if (item.details && typeof item.details === 'object' && !Array.isArray(item.details)) {
+        for (const [key, value] of Object.entries(item.details)) {
+          if (value === undefined || value === null || value === '') continue
+          rows.push([DETAIL_LABELS[key] || key, String(value)])
+        }
+      }
+      return rows
+    }
+
+    function AnnotationCard({ item, history = false, readOnly = false, onSaved, onDeleted }) {
       const [editing, setEditing] = React.useState(false)
+      const [detailsOpen, setDetailsOpen] = React.useState(false)
       const [comment, setComment] = React.useState(item.comment || '')
       const [busy, setBusy] = React.useState(false)
       const [error, setError] = React.useState('')
@@ -212,6 +517,7 @@ window.__ModuleLoader__.load({
       }, [item.comment, editing])
 
       React.useEffect(() => {
+        if (readOnly) return undefined
         const open = (event) => {
           if (event?.detail?.label !== item.label) return
           setComment(item.comment || '')
@@ -219,10 +525,14 @@ window.__ModuleLoader__.load({
         }
         window.addEventListener('dshuf-edit-annotation', open)
         return () => window.removeEventListener('dshuf-edit-annotation', open)
-      }, [item.label, item.comment])
+      }, [item.label, item.comment, readOnly])
 
       const toggle = () => {
         if (busy) return
+        if (readOnly) {
+          setDetailsOpen((value) => !value)
+          return
+        }
         setError('')
         setEditing((value) => !value)
       }
@@ -274,7 +584,7 @@ window.__ModuleLoader__.load({
       return h(
         'span',
         {
-          className: `dshuf-card${editing ? ' editing' : ''}${history ? ' dshuf-history' : ''}`,
+          className: `dshuf-card${editing ? ' editing' : ''}${history ? ' dshuf-history' : ''}${readOnly ? ' dshuf-readonly' : ''}`,
           'data-annotation-id': item.id,
           onClick: (event) => {
             if (event.target?.closest?.('button, textarea')) return
@@ -295,9 +605,9 @@ window.__ModuleLoader__.load({
               type: 'button',
               className: 'dshuf-edit',
               onClick: (event) => { event.preventDefault(); event.stopPropagation(); toggle() },
-            }, editing ? '收起' : '编辑'),
+            }, readOnly ? (detailsOpen ? '收起' : '详情') : (editing ? '收起' : '编辑')),
           ),
-          editing
+          !readOnly && editing
             ? h(
               'span',
               { className: 'dshuf-editbox' },
@@ -326,6 +636,14 @@ window.__ModuleLoader__.load({
               ),
             )
             : h('span', { className: 'dshuf-card-comment' }, item.comment || '（无评论）'),
+          readOnly && detailsOpen
+            ? h('span', { className: 'dshuf-history-details' }, annotationDetailRows(item).map(([key, value]) => h(
+              'span',
+              { className: 'dshuf-detail-row', key },
+              h('span', { className: 'dshuf-detail-key' }, key),
+              h('span', { className: 'dshuf-detail-value' }, value),
+            )))
+            : null,
           error ? h('span', { className: 'dshuf-card-error' }, error) : null,
         ),
       )
@@ -355,8 +673,7 @@ window.__ModuleLoader__.load({
       return h(AnnotationCard, {
         item,
         history: true,
-        onSaved: setItem,
-        onDeleted: () => setDeleted(true),
+        readOnly: true,
       })
     }
 
@@ -483,6 +800,18 @@ window.__ModuleLoader__.load({
 
         ctx.slots.inject('conversation.input.dock', function* () {
           yield ctx.slots.register({ name: 'conversation.input.dock', id: 'dshuf-anno-dock', order: 90 }, Dock)
+        })
+
+        ctx.slots.inject('conversation.input.left', function* () {
+          yield ctx.slots.register({ name: 'conversation.input.left', id: 'dshuf-mode-control', order: 20 }, ModeControl)
+        })
+
+        ctx.slots.inject('plugins.bundle.config', function* () {
+          yield ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-use-firefox' }, SettingsPage)
+        })
+
+        ctx.slots.inject('plugins.detail.actions', function* () {
+          yield ctx.slots.register({ name: 'plugins.detail.actions', id: 'dshuf-settings-jump', order: 40 }, SettingsJump)
         })
       },
     }

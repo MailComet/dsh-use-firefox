@@ -20,6 +20,7 @@
     mode: 'full',
     modeLabel: '完全访问',
     paused: false,
+    annotationMode: 'element',
     groupTitle: 'DSH',
     groupColor: 'blue',
     pluginVersion: '',
@@ -61,6 +62,7 @@
       mode: state.mode,
       modeLabel: state.modeLabel,
       paused: state.paused,
+      annotationMode: state.annotationMode,
       groupTitle: state.groupTitle,
       groupColor: state.groupColor,
       pluginVersion: state.pluginVersion,
@@ -207,6 +209,7 @@
       state.mode = message.mode || state.mode
       state.modeLabel = message.modeLabel || state.mode
       state.paused = message.paused === true
+      state.annotationMode = ['element', 'text', 'region'].includes(message.annotationMode) ? message.annotationMode : state.annotationMode
       state.groupTitle = message.groupTitle || state.groupTitle
       state.groupColor = message.groupColor || state.groupColor
       state.reconnectDelay = 1000
@@ -256,6 +259,9 @@
         notify()
       } else if (message.event === 'paused') {
         state.paused = message.data?.paused === true
+        notify()
+      } else if (message.event === 'annotation-mode') {
+        state.annotationMode = ['element', 'text', 'region'].includes(message.data?.mode) ? message.data.mode : state.annotationMode
         notify()
       }
     }
@@ -767,6 +773,14 @@
         }
         return { cancelled: true }
       }
+      case 'annotation.clear': {
+        const ids = Array.isArray(params.ids) ? params.ids.map(String) : []
+        const tabs = Array.isArray(params.tabs) ? params.tabs.map(Number).filter((id) => Number.isInteger(id) && id > 0) : []
+        for (const tabId of tabs) {
+          try { await sendContent(tabId, 'annotation.clear', { ids }) } catch { /* tab may be gone */ }
+        }
+        return { cleared: ids.length, tabs: tabs.length }
+      }
       case 'status':
         return publicState()
       default:
@@ -780,7 +794,7 @@
     return active[0].id
   }
 
-  async function startAnnotationOnActiveTab(mode = 'element') {
+  async function startAnnotationOnActiveTab(mode = state.annotationMode) {
     const tabId = await activeTabId()
     const tab = await browser.tabs.get(tabId)
     if (isRestrictedUrl(tab.url || tab.pendingUrl)) {
@@ -856,7 +870,16 @@
       }
       case 'dshuf:annotate-start': {
         try {
-          const result = await startAnnotationOnActiveTab(message.mode || 'element')
+          const result = await startAnnotationOnActiveTab(message.mode || state.annotationMode)
+          return { ok: true, state: publicState(), result }
+        } catch (error) {
+          return { ok: false, error: normalizeError(error).message }
+        }
+      }
+      case 'dshuf:shortcut-annotate': {
+        if (state.paused) return { ok: false, error: '浏览器已被用户急停' }
+        try {
+          const result = await startAnnotationOnActiveTab(state.annotationMode)
           return { ok: true, state: publicState(), result }
         } catch (error) {
           return { ok: false, error: normalizeError(error).message }

@@ -63,6 +63,9 @@ test('client module registers the annotation loader id and apply faces', () => {
   assert.deepEqual(registrations.map((entry) => entry.name), [
     'conversation.user.text.node',
     'conversation.input.dock',
+    'conversation.input.left',
+    'plugins.bundle.config',
+    'plugins.detail.actions',
   ])
 
   const match = rule.match('hello @[网页注释 2](dsh-anno:anno-20261120123456-abcdef)', 0)

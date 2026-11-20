@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DSH Use Firefox</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>DSH Use Firefox</h1>
+      <p>DeepSeek Harness 与真实 Firefox 的桥</p>
+    </div>
+    <span id="statusDot" class="dot off" title="连接状态"></span>
+  </header>
+
+  <section class="status">
+    <div><span>状态</span><strong id="statusText">未连接</strong></div>
+    <div class="versions"><span id="versionText"></span><span id="modeBadge" class="badge">—</span></div>
+    <p id="errorText" class="error" hidden></p>
+  </section>
+
+  <section class="intro">
+    <h2>它可以做什么</h2>
+    <ul>
+      <li><strong>操作 Firefox</strong>：DSH 在 DSH 标签组里读页面、点击、输入、截图。</li>
+      <li><strong>快捷注释</strong>：在网页上按 <kbd>Shift</kbd> + <kbd>A</kbd> 再按 <kbd>N</kbd>，点选元素或框选区域并写评论。</li>
+      <li><strong>随对话发送</strong>：确认后注释进入 DSH 输入框，发送时带上元素、评论和截图。</li>
+    </ul>
+    <p class="hint">按 <kbd>Esc</kbd> 退出注释。连接、模式、注释方式和状态都移到了 DSH 的插件详情页。</p>
+  </section>
+
+  <details id="setup" class="setup" hidden>
+    <summary>首次连接</summary>
+    <label><span>桥端口</span><input id="portInput" type="number" min="1" max="65535" step="1" autocomplete="off" /></label>
+    <label><span>令牌</span><input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="~/.dsh/browser/ext-token" /></label>
+    <label><span>客户端名称</span><input id="labelInput" type="text" maxlength="60" autocomplete="off" placeholder="Firefox" /></label>
+    <div class="row"><button id="saveBtn" class="primary" type="button">保存并连接</button></div>
+    <p class="hint">令牌文件：<code>~/.dsh/browser/ext-token</code>；端口默认 39271。</p>
+  </details>
+
+  <footer>在 DSH → 插件 → dsh-use-firefox 中管理连接、权限模式和注释方式。</footer>
+  <script src="popup.js"></script>
+</body>
+</html>

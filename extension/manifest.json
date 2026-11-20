@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DSH Use Firefox",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Let DeepSeek Harness operate your real Firefox through the DSH Use Firefox host plugin.",
   "browser_specific_settings": {
     "gecko": {
@@ -45,12 +45,24 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_popup": "sidebar/sidebar.html"
+    "default_popup": "popup/popup.html"
   },
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content/hotkey.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
 }

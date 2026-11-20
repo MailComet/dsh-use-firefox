@@ -71,6 +71,70 @@ export function registerAnnotationRoutes(webServer, runtime) {
     }
   })
 
+  add('/token', async (request, response) => {
+    if (request.method !== 'GET') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const token = await readFile(runtime.tokenPath(), 'utf8').then((value) => value.trim())
+      if (!/^[a-f0-9]{64}$/i.test(token)) throw new Error('token file is invalid')
+      sendJson(response, 200, { ok: true, token })
+    } catch (error) {
+      sendJson(response, 404, { ok: false, error: error.message })
+    }
+  })
+
+  add('/overview', async (request, response) => {
+    if (request.method !== 'GET') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    sendJson(response, 200, { ok: true, ...runtime.overview() })
+  })
+
+  add('/mode', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const body = await readJson(request)
+      runtime.setMode(body?.mode, 'user')
+      sendJson(response, 200, { ok: true, ...runtime.overview() })
+    } catch (error) {
+      sendJson(response, 400, { ok: false, error: error.message })
+    }
+  })
+
+  add('/paused', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const body = await readJson(request)
+      runtime.setPaused(body?.paused === true, 'user')
+      sendJson(response, 200, { ok: true, ...runtime.overview() })
+    } catch (error) {
+      sendJson(response, 400, { ok: false, error: error.message })
+    }
+  })
+
+  add('/annotation-mode', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const body = await readJson(request)
+      runtime.setAnnotationMode(body?.mode, 'user')
+      sendJson(response, 200, { ok: true, ...runtime.overview() })
+    } catch (error) {
+      sendJson(response, 400, { ok: false, error: error.message })
+    }
+  })
+
   add('/update', async (request, response) => {
     if (request.method !== 'POST') {
       sendJson(response, 405, { ok: false, error: 'method' })

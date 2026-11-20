@@ -1,0 +1,30 @@
+:root { color-scheme: light dark; --bg:#f4f8fc; --card:#fff; --ink:#122033; --muted:#5b6b7f; --line:#d8e3ef; --accent:#1d7fd4; --ok:#1f9d63; --danger:#b9384a; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0d1826; --card:#13243a; --ink:#e8f2ff; --muted:#9fb4ca; --line:#26405c; --accent:#5eb4ff; --ok:#5ee2a0; --danger:#ff8fa3; } }
+* { box-sizing: border-box; }
+html, body { width: 360px; margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", "Noto Sans CJK SC", sans-serif; }
+body { padding: 12px; }
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+h1 { margin: 0; font-size: 17px; }
+p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+h2 { margin: 0 0 7px; font-size: 13px; color: var(--muted); }
+.status, .intro, .setup, footer { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.status > div { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.status span { color: var(--muted); }
+.versions { margin-top: 5px; font-size: 11px; color: var(--muted); }
+.badge { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: #9aa7b7; flex: none; }
+.dot.on { background: var(--ok); }
+.dot.warn { background: #b7791f; }
+.error { color: var(--danger); white-space: pre-wrap; }
+.intro ul { margin: 0; padding-left: 18px; }
+.intro li { margin: 5px 0; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 4px; font: 11px ui-monospace, monospace; background: var(--bg); }
+.hint { margin-top: 8px; font-size: 11px; }
+code { font: 11px ui-monospace, monospace; }
+.setup summary { cursor: pointer; color: var(--accent); }
+label { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--ink); font: inherit; }
+.row { display: flex; gap: 7px; margin-top: 8px; }
+button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+button.primary { background: var(--accent); border-color: transparent; color: #fff; font-weight: 600; }
+footer { color: var(--muted); font-size: 11px; }

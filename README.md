@@ -26,7 +26,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.2.3/dsh-use-firefox-0.2.3.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.0/dsh-use-firefox-0.3.0.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +39,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.2.3/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.2.3.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.3.0.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -52,7 +52,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 
 拿到生成的 `.xpi` 后，在 `about:addons` → 齿轮 → **Install Add-on From File** 安装。
 
-点击 Firefox 工具栏上的 DSH Use Firefox 图标打开弹窗，填入：
+点击 Firefox 工具栏上的 DSH Use Firefox 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
 
 - 端口：`39271`（除非你改了宿主配置）
 - token：`~/.dsh/browser/ext-token` 的内容
@@ -71,7 +71,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 
 ## 注释
 
-点击工具栏图标打开扩展弹窗，选择元素/文字/区域，点击 **注释当前页面**。
+在 Firefox 网页上按 **Shift + A**，再按 **N** 开始注释；用 **Esc** 退出。连接、模式、注释方式和状态在 DSH → 插件 → dsh-use-firefox 中设置。
 
 页面进入选择状态后：
 
@@ -83,9 +83,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 - 消息不会自动发送；发送时宿主才把页面、selector、评论、元素详情、选中文字和截图路径附加到模型上下文。
 - 每页最多 20 条注释。清空草稿后预览卡自动消失。
 
-输入框里使用 DSH 原生 reference chip；点击注释卡或 chip 都可以修改评论、删除注释。
-
-历史消息里的注释会显示为可点击的截图/评论卡；点击可以查看、修改或删除。模型需要看截图的视觉细节时，可以对上下文里的截图路径调用 `read_image`。
+输入框上方的注释卡在发送前可以修改评论或删除；发送后，历史消息里的注释卡变成只读的截图/评论/详情卡，点击可以查看当时的内容，但不能修改。发送后 Firefox 页面上的编号标记会自动清除，下一批注释从 1 重新编号。模型需要看截图的视觉细节时，可以对上下文里的截图路径调用 `read_image`。
 
 ## 模式
 
@@ -96,7 +94,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 | `ask` | 所有改变页面的操作都询问。 |
 | `readonly` | 只读、截图、注释、列出/切换标签页；不导航、不点击、不输入、不上传、不执行 JS。 |
 
-模式由用户在扩展弹窗里设置并持久化。Agent 没有修改模式的工具。
+模式由用户在 DSH 的插件详情页或输入框旁设置并持久化。Agent 没有修改模式的工具。
 
 ## 安全与边界
 
