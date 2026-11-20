@@ -25,7 +25,6 @@
     modeHint: document.getElementById('modeHint'),
     annoMode: document.getElementById('annoMode'),
     annotateBtn: document.getElementById('annotateBtn'),
-    lastAnnotation: document.getElementById('lastAnnotation'),
     groupName: document.getElementById('groupName'),
     clientText: document.getElementById('clientText'),
   }
@@ -82,11 +81,6 @@
     }
 
     setError(state.error || '')
-    if (state.lastAnnotation) {
-      const a = state.lastAnnotation
-      el.lastAnnotation.hidden = false
-      el.lastAnnotation.textContent = `最近注释 · ${a.kind || 'annotation'}\n${a.url || ''}\n${a.comment || a.note || a.text || '(无备注)'}`
-    }
   }
 
   async function refresh() {

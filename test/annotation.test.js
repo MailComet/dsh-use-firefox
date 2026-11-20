@@ -65,6 +65,47 @@ test('user annotations are queued, acknowledged and readable by the client', asy
   assert.equal(runtime.queueAnnotations('session-a').length, 0)
   assert.equal(runtime.annotationItem(created.id).label, '网页注释 1')
   assert.match(runtime.annotationImage(created.id), /annotations\/.*\.png$/)
+
+  const updated = await runtime.updateAnnotation(created.id, '改过的评论')
+  assert.equal(updated.comment, '改过的评论')
+  assert.equal(runtime.annotationItem(created.id).comment, '改过的评论')
+  assert.equal(updated.sent, false)
+
+  const removed = await runtime.deleteAnnotation(created.id)
+  assert.equal(removed.deleted, true)
+  assert.equal(runtime.annotationItem(created.id), null)
+  assert.equal(runtime.annotationImage(created.id), null)
+})
+
+test('annotation records and sent state survive a host restart', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dshuf-annotation-reload-'))
+  const first = await createRuntime(fakeContext(), { home, mode: 'full', bridgePort: 0, audit: false })
+  try {
+    first.setFocusedSession('session-a')
+    const created = await first.createAnnotation(null, payload())
+    first.ackAnnotations([created.id])
+    await first.prepareAnnotationMentions([{
+      role: 'user',
+      content: [{ type: 'text', text: `@[网页注释 1](dsh-anno:${created.id})` }],
+    }])
+    assert.equal(first.annotationItem(created.id).sent, true)
+  } finally {
+    await first.dispose()
+  }
+
+  const second = await createRuntime(fakeContext(), { home, mode: 'full', bridgePort: 0, audit: false })
+  try {
+    const records = [...second.annotations.values()]
+    assert.equal(records.length, 1)
+    assert.equal(records[0].sent, true)
+    assert.equal(records[0].comment, '这个按钮太靠右了')
+    assert.equal(second.queueAnnotations('session-a').length, 0)
+    assert.ok(second.annotationItem(records[0].id))
+    assert.match(second.annotationImage(records[0].id), /annotations\/.*\.png$/)
+  } finally {
+    await second.dispose()
+    await rm(home, { recursive: true, force: true })
+  }
 })
 
 test('queued annotations bind to the first focused session and filter others', async (t) => {
@@ -150,6 +191,13 @@ test('annotation routes expose queue, ack, focus, item and image', async (t) => 
 
   const focus = await call('/focus', { method: 'POST', body: JSON.stringify({ sessionId: 'session-b' }) })
   assert.equal(focus.status, 200)
+
+  const updated = await call('/update', {
+    method: 'POST',
+    body: JSON.stringify({ id: created.id, comment: '通过路由改评论' }),
+  })
+  assert.equal(updated.status, 200)
+  assert.equal(JSON.parse(updated.body.toString()).item.comment, '通过路由改评论')
 
   const ack = await call('/queue/ack', { method: 'POST', body: JSON.stringify({ ids: [created.id] }) })
   assert.equal(ack.status, 200)

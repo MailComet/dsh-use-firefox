@@ -71,6 +71,34 @@ export function registerAnnotationRoutes(webServer, runtime) {
     }
   })
 
+  add('/update', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const body = await readJson(request)
+      const item = await runtime.updateAnnotation(body?.id, body?.comment)
+      sendJson(response, 200, { ok: true, item })
+    } catch (error) {
+      sendJson(response, error?.code === 'ANNOTATION_NOT_FOUND' ? 404 : 400, { ok: false, error: error.message })
+    }
+  })
+
+  add('/delete', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const body = await readJson(request)
+      const result = await runtime.deleteAnnotation(body?.id)
+      sendJson(response, 200, { ok: true, ...result })
+    } catch (error) {
+      sendJson(response, error?.code === 'ANNOTATION_NOT_FOUND' ? 404 : 400, { ok: false, error: error.message })
+    }
+  })
+
   add('/item', async (request, response) => {
     if (request.method !== 'GET') {
       sendJson(response, 405, { ok: false, error: 'method' })

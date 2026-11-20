@@ -103,3 +103,23 @@ test('composeDraft appends idempotent reference chips and acknowledges every ite
 
   assert.equal(module.composeDraft({ phase: 'sending', draft: '', occurrences: [] }, [item]), undefined)
 })
+test('removeMentions removes a chip and rebases the remaining references', () => {
+  const { module } = loadClient()
+  const one = '@[网页注释 1](dsh-anno:anno-1)'
+  const two = '@[网页注释 2](dsh-anno:anno-2)'
+  const state = {
+    phase: 'plain',
+    draft: `${one}\n${two}`,
+    occurrences: [
+      { occurrenceId: 1, source: 'reference', ref: one, offset: 0, length: one.length, label: '网页注释 1', clipboardText: one },
+      { occurrenceId: 2, source: 'reference', ref: two, offset: one.length + 1, length: two.length, label: '网页注释 2', clipboardText: two },
+    ],
+  }
+  const plan = module.removeMentions(state, [one])
+  assert.equal(plan.text, two)
+  assert.equal(plan.references.length, 1)
+  assert.equal(plan.references[0].ref, two)
+  assert.equal(plan.references[0].offset, 0)
+  assert.equal(module.removeMentions(state, ['不存在']), undefined)
+  assert.equal(module.removeMentions({ ...state, phase: 'sending' }, [one]), undefined)
+})

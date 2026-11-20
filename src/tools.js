@@ -300,7 +300,7 @@ export function registerTools(ctx, runtime) {
   ctx.effect(() => ctx.tools.register(defineTool({
     name: 'browser_annotate',
     description:
-      'Ask the user to annotate a DSH-group page in Firefox: the user picks an element, selects text, or draws a region and writes a note. With wait=true the tool waits and returns the annotation; with wait=false it only enters annotation mode and returns immediately. The user can also start annotations from the extension sidebar.',
+      'Ask the user to annotate a DSH-group page in Firefox: the user picks an element, selects text, or draws a region and writes a note. With wait=true the tool waits and returns the annotation; with wait=false it only enters annotation mode and returns immediately. The user can also start annotations from the extension toolbar popup.',
     parameters: {
       tab_id: { type: 'integer', description: 'DSH-group tab id to annotate; defaults to the current agent tab' },
       prompt: { type: 'string', description: 'One-line instruction shown in the annotation banner' },

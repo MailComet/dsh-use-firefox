@@ -821,7 +821,7 @@ const ANNO_ICONS = {
       toast: q('.toast'),
     }
     q('[data-cancel-hint]').addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); cancelAnnotation() })
-    q('[data-delete]').addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); cancelAnnotation() })
+    q('[data-delete]').addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); removeAnnotationDraft() })
     q('[data-details]').addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showDetails() })
     q('[data-confirm]').addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); submitAnnotation() })
     for (const button of shadow.querySelectorAll('[data-close-details]')) {
@@ -1065,11 +1065,9 @@ const ANNO_ICONS = {
       event.preventDefault()
       event.stopPropagation()
       if (record.element?.isConnected) {
-        record.element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
-        setOutline(record.element.getBoundingClientRect())
-        setTimeout(() => { if (!anno) setOutline(null) }, 1200)
+        record.element.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
       }
-      showToast(`网页注释 ${record.seq}${record.comment ? `：${record.comment}` : ''}`)
+      editAnnotation(record)
     })
     ui.markers.appendChild(marker)
     record.marker = marker
@@ -1285,6 +1283,105 @@ const ANNO_ICONS = {
     return true
   }
 
+  function editAnnotation(record) {
+    const ui = ensureAnnoHost()
+    if (anno?.cancel) anno.cancel()
+    const element = record.element?.isConnected ? record.element : null
+    const rect = element
+      ? element.getBoundingClientRect()
+      : (record.pageRect
+        ? {
+            x: record.pageRect.x - window.scrollX,
+            y: record.pageRect.y - window.scrollY,
+            width: record.pageRect.width,
+            height: record.pageRect.height,
+          }
+        : record.rect)
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      showToast('这个注释的位置已经不存在')
+      return
+    }
+    const draft = {
+      mode: 'edit',
+      editingId: record.id,
+      requestId: null,
+      hint: '',
+      phase: 'card',
+      kind: record.kind || 'element',
+      selected: element,
+      selectedText: '',
+      rect,
+      pageRect: record.pageRect || { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height },
+      down: false,
+      downPoint: null,
+      downTarget: null,
+      dragging: false,
+      busy: false,
+      listeners: [],
+    }
+    anno = draft
+    const on = (target, type, handler, options) => {
+      target.addEventListener(type, handler, options)
+      draft.listeners.push(() => target.removeEventListener(type, handler, options))
+    }
+    draft.cancel = () => cleanupDraft(true)
+    on(document, 'click', (event) => {
+      if (!anno || isInsideAnnoUi(event)) return
+      event.preventDefault()
+      event.stopPropagation()
+    }, true)
+    on(document, 'keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        cleanupDraft(true)
+      }
+    }, true)
+    ui.hint.classList.remove('hidden')
+    ui.hintText.textContent = `编辑 ${record.label || '网页注释'} · Esc 取消`
+    ui.card.classList.remove('hidden')
+    ui.details.classList.add('hidden')
+    ui.error.classList.add('hidden')
+    ui.error.textContent = ''
+    ui.textarea.value = record.comment || ''
+    ui.textarea.style.height = 'auto'
+    ui.textarea.style.height = `${Math.min(160, Math.max(44, ui.textarea.scrollHeight || 44))}px`
+    setOutline(draft.kind === 'region' ? null : rect)
+    setRegion(draft.kind === 'region' ? rect : null)
+    positionDraft()
+    ui.textarea.focus()
+  }
+
+  async function removeAnnotationDraft() {
+    const draft = anno
+    if (!draft || draft.busy) return
+    if (!draft.editingId) {
+      cancelAnnotation()
+      return
+    }
+    const ui = annoHost
+    draft.busy = true
+    showDraftError('')
+    const buttons = [...ui.card.querySelectorAll('button')]
+    for (const button of buttons) button.disabled = true
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: 'dshuf:annotation-delete',
+        payload: { id: draft.editingId },
+      }).catch((error) => ({ ok: false, error: error?.message || String(error) }))
+      if (!response?.ok) throw new Error(response?.error || 'DSH 没有删除注释')
+      const record = annoMarkers.get(draft.editingId)
+      if (record?.marker) record.marker.remove()
+      annoMarkers.delete(draft.editingId)
+      cleanupDraft(false)
+      showToast(`已删除 ${record?.label || '网页注释'}`)
+    } catch (error) {
+      draft.busy = false
+      for (const button of buttons) button.disabled = false
+      showDraftError(error?.message || String(error))
+    }
+  }
+
   function cleanupDraft(sendCancel) {
     if (!anno) return
     const draft = anno
@@ -1301,6 +1398,7 @@ const ANNO_ICONS = {
       annoHost.error.classList.add('hidden')
       annoHost.textarea.value = ''
       annoHost.textarea.style.height = '44px'
+      for (const button of annoHost.card.querySelectorAll('button')) button.disabled = false
     }
     if (sendCancel && draft.requestId) {
       browser.runtime.sendMessage({ type: 'dshuf:annotation-cancel', requestId: draft.requestId }).catch(() => {})
@@ -1318,6 +1416,22 @@ const ANNO_ICONS = {
     const detailsButton = ui.card.querySelector('[data-details]')
     for (const button of [submitButton, deleteButton, detailsButton]) button.disabled = true
     try {
+      if (draft.editingId) {
+        const comment = ui.textarea.value.trim()
+        const response = await browser.runtime.sendMessage({
+          type: 'dshuf:annotation-update',
+          payload: { id: draft.editingId, comment },
+        }).catch((error) => ({ ok: false, error: error?.message || String(error) }))
+        if (!response?.ok) throw new Error(response?.error || 'DSH 没有更新注释')
+        const record = annoMarkers.get(draft.editingId)
+        if (record) {
+          record.comment = comment
+          if (record.marker) record.marker.title = comment || record.label
+        }
+        cleanupDraft(false)
+        showToast(`已更新 ${record?.label || '网页注释'}`)
+        return
+      }
       if (draft.kind === 'element' && draft.selected?.isConnected) {
         draft.selected.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
         await new Promise((resolve) => setTimeout(resolve, 80))

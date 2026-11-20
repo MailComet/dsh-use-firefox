@@ -32,6 +32,8 @@
 * { box-sizing: border-box; }
 
 html, body {
+  width: 360px;
+  max-height: 600px;
   margin: 0;
   padding: 0;
   background: var(--bg);
@@ -41,7 +43,7 @@ html, body {
   line-height: 1.45;
 }
 
-body { padding: 12px; }
+body { padding: 12px; overflow-y: auto; }
 
 .top {
   display: flex;
@@ -207,18 +209,6 @@ code {
   background: color-mix(in srgb, var(--line) 45%, transparent);
   padding: 1px 4px;
   border-radius: 4px;
-}
-
-.last {
-  margin-top: 9px;
-  padding: 8px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  font-size: 11px;
-  color: var(--muted);
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .small { font-size: 11px; color: var(--muted); margin: 7px 0 0; }

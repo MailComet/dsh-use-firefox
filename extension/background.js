@@ -619,7 +619,7 @@
 
   async function handleHostRequest(op, params = {}) {
     if (state.paused && MUTATING_OPS.has(op)) {
-      throw new ExtError('PAUSED', '浏览器已被用户急停', '让用户在扩展侧边栏点“恢复”。')
+      throw new ExtError('PAUSED', '浏览器已被用户急停', '让用户在扩展弹窗点“恢复”。')
     }
     if (state.mode === 'readonly' && MUTATING_OPS.has(op)) {
       throw new ExtError('MODE_DENIED', '只读取模式不允许改变页面的操作', '让用户切换模式。')
@@ -900,6 +900,21 @@
         (error) => ({ ok: false, error: normalizeError(error).message }),
       )
     }
+    if (message?.type === 'dshuf:annotation-update') {
+      return requestHost('annotation.update', {
+        id: message.payload?.id,
+        comment: String(message.payload?.comment || ''),
+      }, 30_000).then(
+        (data) => ({ ok: true, data }),
+        (error) => ({ ok: false, error: normalizeError(error).message }),
+      )
+    }
+    if (message?.type === 'dshuf:annotation-delete') {
+      return requestHost('annotation.delete', { id: message.payload?.id }, 30_000).then(
+        (data) => ({ ok: true, data }),
+        (error) => ({ ok: false, error: normalizeError(error).message }),
+      )
+    }
     if (message?.type === 'dshuf:annotation-submit') {
       if (!sender?.tab?.id) return Promise.resolve({ ok: false, error: '缺少来源标签页' })
       const payload = {
@@ -939,10 +954,6 @@
       if ((await groupTitleOf(opener.groupId)) !== state.groupTitle) return
       try { await browser.tabs.group({ tabIds: [tab.id], groupId: opener.groupId }) } catch { /* ignore */ }
     }).catch(() => {})
-  })
-
-  browser.action.onClicked.addListener(() => {
-    browser.sidebarAction.open().catch(() => {})
   })
 
   browser.alarms.onAlarm.addListener((alarm) => {
