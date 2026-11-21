@@ -5,13 +5,12 @@
 #   scripts/publish-remote.sh                 # 用 dist/ 里当前版本的 xpi
 #   scripts/publish-remote.sh path/to.xpi     # 指定签名包
 #
-# 可用环境变量覆盖：DSH_UPDATE_HOST（ssh 主机或别名）
-#                  DSH_UPDATE_PATH（默认 /var/www/dl/dsh-use-firefox）
-#                  DSH_UPDATE_BASE（默认 https://sxyz.dev/dl/dsh-use-firefox/）
+# 需要先设：DSH_UPDATE_HOST（ssh 主机或别名）、DSH_UPDATE_PATH（服务器上的发布目录）
+# 可选：    DSH_UPDATE_BASE（公开地址前缀，默认 https://sxyz.dev/dl/dsh-use-firefox/）
 set -euo pipefail
 
 host=${DSH_UPDATE_HOST:?请设置 DSH_UPDATE_HOST（ssh 主机或别名）}
-target=${DSH_UPDATE_PATH:?请设置 DSH_UPDATE_PATH（发布目录）}
+target=${DSH_UPDATE_PATH:?请设置 DSH_UPDATE_PATH（服务器上的发布目录）}
 base=${DSH_UPDATE_BASE:-https://sxyz.dev/dl/dsh-use-firefox/}
 
 root=$(cd "$(dirname "$0")/.." && pwd)

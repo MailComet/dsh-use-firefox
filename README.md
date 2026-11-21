@@ -61,7 +61,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 
 从 **v0.4.8** 起，扩展的 manifest 带 `update_url`（`https://sxyz.dev/dl/dsh-use-firefox/updates.json`）。装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更早装上、没有这个字段的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
 
-签名包和更新清单都放在自己的服务器上（`server:/var/www/dl/dsh-use-firefox/`，静态直出），不依赖 GitHub Pages：
+签名包和更新清单托管在自己的静态服务器上（静态直出），不依赖 GitHub Pages：
 
 ```text
 https://sxyz.dev/dl/dsh-use-firefox/updates.json
@@ -143,14 +143,14 @@ git push origin main --tags
 3. 打包 `dsh_use_firefox-<版本>.zip` 和 npm tarball；
 4. 用 AMO 凭据签名（`--channel=unlisted`）；
 5. 建/更新 GitHub Release，上传签名 `.xpi`、稳定名 `dsh_use_firefox.xpi`、tarball 和 zip；
-6. 重新生成 `updates.json`，连同签名 xpi rsync 到 `server:/var/www/dl/dsh-use-firefox/`；
+6. 重新生成 `updates.json`，连同签名 xpi rsync 到服务器上的发布目录（见下面的部署 secrets）；
 7. 用 curl 验证 `sxyz.dev` 上的两个公开地址返回 200。
 
 ### 一次性配置
 
 - **AMO 凭据**：在 <https://addons.mozilla.org/en-US/developers/addon/api/key/> 生成 JWT issuer / secret（开发者账号需已开启两步验证），然后加到仓库 **Settings → Secrets and variables → Actions**：`AMO_JWT_ISSUER`、`AMO_JWT_SECRET`。
-- **部署通道**：仓库 **Settings → Secrets and variables → Actions** 加 `DEPLOY_HOST`（`203.0.113.10`）、`DEPLOY_USER`（部署用户）、`DEPLOY_SSH_KEY`（能登录服务器的私钥）、`DEPLOY_PATH`（可省，默认 `/var/www/dl/dsh-use-firefox`）。不配 `DEPLOY_HOST` 时工作流会在部署步骤给出警告并跳过，不会失败。
-- **不走 CI 时**：`scripts/publish-remote.sh [xpi路径]` 用本机 ssh 主机上传，逻辑与 CI 一致。
+- **部署通道**：仓库 **Settings → Secrets and variables → Actions** 加 `DEPLOY_HOST`（服务器地址）、`DEPLOY_USER`（部署用户）、`DEPLOY_SSH_KEY`（部署私钥）、`DEPLOY_PATH`（发布目录，必填）。不配 `DEPLOY_HOST` 时工作流会在部署步骤给出警告并跳过，不会失败。
+- **不走 CI 时**：`scripts/publish-remote.sh [xpi路径]` 用本机 ssh 别名上传，需要先设 `DSH_UPDATE_HOST` / `DSH_UPDATE_PATH`，逻辑与 CI 一致。
 - 同一个版本号在 AMO 只能提交一次；重复提交会报 `version already exists`，此时把版本号加一再发。
 
 只想验证构建、不想签名和发布时，在 Actions 里手动触发 `Release` 并勾上 `dry_run`。

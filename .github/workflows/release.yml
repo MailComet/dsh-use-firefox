@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # 更新清单与 xpi 的公开地址前缀（目录 = 服务器上的 /var/www/dl/dsh-use-firefox）
+  # 更新清单与 xpi 的公开地址前缀，必须与 DEPLOY_PATH 对应的站点目录一致
   UPDATE_BASE_URL: https://sxyz.dev/dl/dsh-use-firefox/
 
 jobs:
@@ -125,7 +125,11 @@ jobs:
             echo "::warning::未配置 DEPLOY_HOST，跳过上传（更新清单未发布）"
             exit 0
           fi
-          target=${DEPLOY_PATH:-/var/www/dl/dsh-use-firefox}
+          if [ -z "${DEPLOY_PATH:-}" ]; then
+            echo "::error::缺少 DEPLOY_PATH（服务器上的发布目录）"
+            exit 1
+          fi
+          target=$DEPLOY_PATH
           install -d -m 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/dsh_deploy
           chmod 600 ~/.ssh/dsh_deploy
