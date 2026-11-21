@@ -128,20 +128,6 @@ export function registerAnnotationRoutes(webServer, runtime) {
     }
   })
 
-  add('/paused', async (request, response) => {
-    if (request.method !== 'POST') {
-      sendJson(response, 405, { ok: false, error: 'method' })
-      return
-    }
-    try {
-      const body = await readJson(request)
-      runtime.setPaused(body?.paused === true, 'user')
-      sendJson(response, 200, { ok: true, ...runtime.overview() })
-    } catch (error) {
-      sendJson(response, 400, { ok: false, error: error.message })
-    }
-  })
-
   add('/annotation-mode', async (request, response) => {
     if (request.method !== 'POST') {
       sendJson(response, 405, { ok: false, error: 'method' })

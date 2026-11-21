@@ -19,7 +19,6 @@
     error: null,
     mode: 'full',
     modeLabel: '完全访问',
-    paused: false,
     annotationMode: 'element',
     groupTitle: 'DSH',
     groupColor: 'blue',
@@ -61,7 +60,6 @@
       error: state.error,
       mode: state.mode,
       modeLabel: state.modeLabel,
-      paused: state.paused,
       annotationMode: state.annotationMode,
       groupTitle: state.groupTitle,
       groupColor: state.groupColor,
@@ -208,7 +206,6 @@
       state.serverProtocolVersion = Number(message.version || 0)
       state.mode = message.mode || state.mode
       state.modeLabel = message.modeLabel || state.mode
-      state.paused = message.paused === true
       state.annotationMode = ['element', 'text', 'region'].includes(message.annotationMode) ? message.annotationMode : state.annotationMode
       state.groupTitle = message.groupTitle || state.groupTitle
       state.groupColor = message.groupColor || state.groupColor
@@ -256,9 +253,6 @@
       if (message.event === 'mode') {
         state.mode = message.data?.mode || state.mode
         state.modeLabel = message.data?.modeLabel || state.mode
-        notify()
-      } else if (message.event === 'paused') {
-        state.paused = message.data?.paused === true
         notify()
       } else if (message.event === 'annotation-mode') {
         state.annotationMode = ['element', 'text', 'region'].includes(message.data?.mode) ? message.data.mode : state.annotationMode
@@ -640,9 +634,6 @@
   }
 
   async function handleHostRequest(op, params = {}) {
-    if (state.paused && MUTATING_OPS.has(op)) {
-      throw new ExtError('PAUSED', '浏览器已被用户急停', '让用户在扩展弹窗点“恢复”。')
-    }
     if (state.mode === 'readonly' && MUTATING_OPS.has(op)) {
       throw new ExtError('MODE_DENIED', '只读取模式不允许改变页面的操作', '让用户切换模式。')
     }
@@ -880,26 +871,6 @@
           return { ok: false, error: normalizeError(error).message }
         }
       }
-      case 'dshuf:stop': {
-        try {
-          const result = await requestHost('paused.set', { paused: true })
-          state.paused = result.paused === true
-          notify()
-          return { ok: true, state: publicState() }
-        } catch (error) {
-          return { ok: false, error: normalizeError(error).message }
-        }
-      }
-      case 'dshuf:resume': {
-        try {
-          const result = await requestHost('paused.set', { paused: false })
-          state.paused = result.paused === true
-          notify()
-          return { ok: true, state: publicState() }
-        } catch (error) {
-          return { ok: false, error: normalizeError(error).message }
-        }
-      }
       case 'dshuf:annotate-start': {
         try {
           const result = await startAnnotationOnActiveTab(message.mode || state.annotationMode)
@@ -909,7 +880,6 @@
         }
       }
       case 'dshuf:shortcut-annotate': {
-        if (state.paused) return { ok: false, error: '浏览器已被用户急停' }
         try {
           const result = await startAnnotationOnActiveTab(state.annotationMode)
           return { ok: true, state: publicState(), result }
@@ -1006,11 +976,6 @@
 
   browser.commands.onCommand.addListener((command) => {
     if (command !== 'start-annotation') return
-    if (state.paused) {
-      state.error = '浏览器已被用户急停'
-      notify()
-      return
-    }
     startAnnotationOnActiveTab(state.annotationMode).catch((error) => {
       state.error = normalizeError(error).message
       notify()

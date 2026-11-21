@@ -84,7 +84,6 @@ export class Runtime {
     this.logger = safeLogger(ctx)
     this.token = ''
     this.mode = 'full'
-    this.paused = false
     this.bridge = null
     this.bridgeError = null
     this.lastAgent = null
@@ -266,7 +265,6 @@ export class Runtime {
       getWelcome: () => ({
         mode: this.mode,
         modeLabel: MODE_LABELS[this.mode],
-        paused: this.paused,
         groupTitle: this.groupTitle,
         groupColor: this.groupColor,
         annotationMode: this.annotationMode,
@@ -357,13 +355,6 @@ export class Runtime {
     return next
   }
 
-  setPaused(paused, source = 'user') {
-    this.paused = Boolean(paused)
-    this.bridge?.broadcast('paused', { paused: this.paused, source })
-    void this.audit({ type: 'paused', paused: this.paused, source })
-    return this.paused
-  }
-
   async persistState() {
     try {
       const current = await readState(this.home)
@@ -377,14 +368,6 @@ export class Runtime {
     if (event === 'annotation') return this.handleAnnotation(client, data)
     if (event === 'annotation-cancel') {
       this.settlePick(data?.requestId, new BridgeError('ANNOTATION_CANCELLED', '用户取消了注释', '重新发起注释。'))
-      return
-    }
-    if (event === 'stop') {
-      this.setPaused(true, 'extension')
-      return
-    }
-    if (event === 'resume') {
-      this.setPaused(false, 'extension')
       return
     }
     if (event === 'log') {
@@ -401,10 +384,6 @@ export class Runtime {
     if (op === 'mode.set') {
       const mode = this.setMode(params?.mode, 'user')
       return { mode, modeLabel: MODE_LABELS[mode] }
-    }
-    if (op === 'paused.set') {
-      const paused = this.setPaused(params?.paused === true, 'user')
-      return { paused }
     }
     if (op === 'status') return this.status()
     throw new BridgeError('UNKNOWN_OP', `扩展请求了未知操作: ${op}`)
@@ -900,9 +879,6 @@ ${JSON.stringify(evidence)}
   }
 
   async authorize(exec, input) {
-    if (this.paused) {
-      throw new BridgeError('PAUSED', '浏览器已被用户急停', '让用户在扩展弹窗点“恢复”，或重新开启。')
-    }
     const decision = modeDecision(this.mode, input)
     if (decision.denied) {
       throw new BridgeError('MODE_DENIED', decision.reason || '当前模式不允许该操作', '让用户切换模式；模式只能由用户修改。')
@@ -1029,7 +1005,6 @@ ${JSON.stringify(evidence)}
       ...bridge,
       mode: this.mode,
       modeLabel: MODE_LABELS[this.mode],
-      paused: this.paused,
       annotationMode: this.annotationMode,
       groupTitle: this.groupTitle,
       groupColor: this.groupColor,
@@ -1056,7 +1031,7 @@ ${JSON.stringify(evidence)}
     const status = this.status()
     const lines = [
       `DSH Use FF v${status.pluginVersion}`,
-      `mode: ${status.modeLabel} (${status.mode})${status.paused ? ' · 已急停' : ''}`,
+      `mode: ${status.modeLabel} (${status.mode})`,
       `bridge: ${status.running ? `running · ws://${status.host}:${status.port}/ext/bridge` : 'not running'}${status.error ? ` · error: ${status.error}` : ''}`,
       `group: ${status.groupTitle}`,
       `token: ${status.tokenPath}`,

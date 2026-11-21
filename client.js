@@ -20,7 +20,6 @@ window.__ModuleLoader__.load({
     const PENDING_PATH = '/ext/use-firefox/pending'
     const OVERVIEW_PATH = '/ext/use-firefox/overview'
     const MODE_PATH = '/ext/use-firefox/mode'
-    const PAUSED_PATH = '/ext/use-firefox/paused'
     const ANNOTATION_MODE_PATH = '/ext/use-firefox/annotation-mode'
     const ANNOTATION_START_PATH = '/ext/use-firefox/annotation-start'
     const TOKEN_PATH = '/ext/use-firefox/token'
@@ -66,10 +65,6 @@ window.__ModuleLoader__.load({
 .dshuf-mode-button:hover { color: var(--dsw-alias-label-primary, #111827); background: var(--dsw-alias-bg-secondary, #f8fafc); }
 .dshuf-mode-name { font-weight: 600; }
 .dshuf-mode-value { color: var(--dsw-alias-state-business-primary, #2563eb); }
-.dshuf-stop { border: 1px solid color-mix(in srgb, #dc2626 30%, transparent); border-radius: 999px; background: color-mix(in srgb, #dc2626 7%, transparent); color: #dc2626; font: inherit; font-size: 11px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
-.dshuf-stop:hover { background: color-mix(in srgb, #dc2626 12%, transparent); }
-.dshuf-stop.paused { color: #1f9d63; border-color: color-mix(in srgb, #1f9d63 35%, transparent); background: color-mix(in srgb, #1f9d63 8%, transparent); }
-.dshuf-stop:disabled { opacity: .5; cursor: default; }
 .dshuf-mode-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; display: flex; flex-direction: column; min-width: 190px; padding: 5px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); box-shadow: 0 12px 32px rgba(15, 23, 42, .18); }
 .dshuf-mode-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary, #111827); font: inherit; font-size: 12px; padding: 5px 8px; cursor: pointer; text-align: left; }
 .dshuf-mode-item small { color: var(--dsw-alias-label-secondary, #6b7280); font-size: 10px; }
@@ -345,9 +340,6 @@ window.__ModuleLoader__.load({
           h('div', { className: 'dshuf-setting-line' }, h('span', null, 'Firefox'), h('strong', null, connected ? `已连接 · ${clients.length} 个客户端` : '未连接')),
           h('div', { className: 'dshuf-setting-line' }, h('span', null, '插件 / 扩展'), h('strong', null, `${data?.pluginVersion || '—'} / ${clients[0]?.extensionVersion || '—'}`)),
           h('div', { className: 'dshuf-setting-line' }, h('span', null, '桥'), h('strong', null, data?.running ? `运行中 · ${data.port}` : '未运行')),
-          h('div', { className: 'dshuf-setting-actions' },
-            h('button', { type: 'button', className: data?.paused ? 'primary' : 'danger', disabled: busy || !data, onClick: () => act(PAUSED_PATH, { paused: !data?.paused }) }, data?.paused ? '恢复' : '急停'),
-          ),
         ),
         h(
           'section',
@@ -452,22 +444,6 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const togglePause = async (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        if (busy || !data) return
-        setBusy(true)
-        setError('')
-        try {
-          const next = await postOverview(PAUSED_PATH, { paused: !data.paused })
-          setData(next)
-        } catch (cause) {
-          setError(cause?.message || String(cause))
-        } finally {
-          setBusy(false)
-        }
-      }
-
       if (!data?.mode) return null
       const label = data.modeLabel || MODE_OPTIONS.find(([value]) => value === data.mode)?.[1] || data.mode
       return h(
@@ -480,14 +456,6 @@ window.__ModuleLoader__.load({
           onClick: (event) => { event.preventDefault(); event.stopPropagation(); setOpen((value) => !value) },
           onMouseDown: (event) => event.preventDefault(),
         }, h('span', { className: 'dshuf-mode-name' }, 'Firefox'), h('span', { className: 'dshuf-mode-value' }, label)),
-        h('button', {
-          type: 'button',
-          className: `dshuf-stop${data.paused ? ' paused' : ''}`,
-          title: data.paused ? '恢复 Firefox 操作' : '急停 Firefox 操作',
-          disabled: busy,
-          onClick: togglePause,
-          onMouseDown: (event) => event.preventDefault(),
-        }, data.paused ? '恢复' : '急停'),
         open ? h(
           'span',
           { className: 'dshuf-mode-menu' },
