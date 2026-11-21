@@ -1,28 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <defs>
-    <linearGradient id="tile" x1="16" y1="10" x2="112" y2="120" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5B86FF"/>
-      <stop offset=".52" stop-color="#4D6BFE"/>
-      <stop offset="1" stop-color="#172A86"/>
+    <linearGradient id="base" x1="12" y1="8" x2="116" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12102F"/>
+      <stop offset=".52" stop-color="#070B1D"/>
+      <stop offset="1" stop-color="#040612"/>
     </linearGradient>
-    <linearGradient id="orbit" x1="22" y1="22" x2="106" y2="106" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFC24B"/>
-      <stop offset=".38" stop-color="#FF7A35"/>
-      <stop offset=".72" stop-color="#FF4D83"/>
-      <stop offset="1" stop-color="#FF9A3D"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(48 38) rotate(48) scale(72)" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity=".22"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    <radialGradient id="violet" cx="0" cy="0" r="1" gradientTransform="translate(26 18) rotate(42) scale(82 74)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C4DFF" stop-opacity=".72"/>
+      <stop offset=".55" stop-color="#5B2EFF" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#5B2EFF" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="cyan" cx="0" cy="0" r="1" gradientTransform="translate(108 108) rotate(-140) scale(82 78)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00D4FF" stop-opacity=".55"/>
+      <stop offset=".58" stop-color="#0A7BFF" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#0A7BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ember" cx="0" cy="0" r="1" gradientTransform="translate(112 16) rotate(125) scale(70 66)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF6A3D" stop-opacity=".62"/>
+      <stop offset=".55" stop-color="#FF3D8B" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#FF3D8B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blue" x1="26" y1="32" x2="76" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8EF3FF"/>
+      <stop offset=".38" stop-color="#28B8FF"/>
+      <stop offset="1" stop-color="#4D6BFE"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="80" y1="32" x2="104" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD36B"/>
+      <stop offset=".42" stop-color="#FF8A35"/>
+      <stop offset="1" stop-color="#FF3D8B"/>
+    </linearGradient>
+    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M16 0H0V16" fill="none" stroke="#FFFFFF" stroke-opacity=".045" stroke-width=".7"/>
+    </pattern>
+    <clipPath id="tile"><rect x="4" y="4" width="120" height="120" rx="29"/></clipPath>
   </defs>
-  <rect x="4" y="4" width="120" height="120" rx="29" fill="url(#tile)"/>
+  <rect x="4" y="4" width="120" height="120" rx="29" fill="url(#base)"/>
+  <g clip-path="url(#tile)">
+    <rect x="4" y="4" width="120" height="120" fill="url(#violet)"/>
+    <rect x="4" y="4" width="120" height="120" fill="url(#cyan)"/>
+    <rect x="4" y="4" width="120" height="120" fill="url(#ember)"/>
+    <rect x="4" y="4" width="120" height="120" fill="url(#grid)"/>
+  </g>
   <rect x="4.5" y="4.5" width="119" height="119" rx="28.5" fill="none" stroke="#FFFFFF" stroke-opacity=".16"/>
-  <rect x="4" y="4" width="120" height="120" rx="29" fill="url(#glow)"/>
-  <circle cx="64" cy="64" r="44" fill="none" stroke="#FFFFFF" stroke-opacity=".13" stroke-width="1.5"/>
-  <circle cx="64" cy="64" r="44" fill="none" stroke="url(#orbit)" stroke-width="6.5" stroke-linecap="round"/>
-  <circle cx="101.1" cy="27.9" r="4.2" fill="#FFE08A"/>
-  <circle cx="101.1" cy="27.9" r="1.8" fill="#FFFFFF"/>
-  <path fill="#FFFFFF" d="M41 36H60C82 36 93 48 93 64C93 80 82 92 60 92H41V36ZM53 48V80H60C73 80 81 74 81 64C81 54 73 48 60 48H53Z"/>
-  <path fill="#FFFFFF" d="M41 36C34 34 29 28 30 21C37 23 43 28 47 34L41 36Z"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#FFFFFF" stroke-opacity=".12" stroke-width="15">
+      <path d="M26 32V96"/>
+      <path d="M26 32H48C66 32 74 45 74 64C74 83 66 96 48 96H26"/>
+      <path d="M80 32V96"/>
+      <path d="M80 32H102"/>
+      <path d="M80 61H94"/>
+    </g>
+    <g stroke="url(#blue)" stroke-width="11">
+      <path d="M26 32V96"/>
+      <path d="M26 32H48C66 32 74 45 74 64C74 83 66 96 48 96H26"/>
+    </g>
+    <g stroke="url(#orange)" stroke-width="11">
+      <path d="M80 32V96"/>
+      <path d="M80 32H102"/>
+      <path d="M80 61H94"/>
+    </g>
+  </g>
 </svg>
