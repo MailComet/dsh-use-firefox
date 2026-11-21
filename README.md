@@ -1,5 +1,7 @@
 # dsh-use-firefox
 
+![dsh-use-firefox icon](extension/icons/icon-128.png)
+
 让 DeepSeek Harness Desktop 直接操作你正在使用的 Firefox。
 
 插件由两部分组成：
@@ -26,7 +28,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.5/dsh-use-firefox-0.4.5.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.6/dsh-use-firefox-0.4.6.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +41,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.5/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.4.5.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.4.6.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
