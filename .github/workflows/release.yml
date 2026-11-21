@@ -18,8 +18,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # 更新清单与 xpi 的公开地址前缀，必须与 DEPLOY_PATH 对应的站点目录一致
-  UPDATE_BASE_URL: https://sxyz.dev/dl/dsh-use-firefox/
+  # 更新清单、xpi 和 zip 的公开地址前缀，必须与 DEPLOY_PATH 对应的站点目录一致
+  UPDATE_BASE_URL: https://sxyz.dev/dl/firefox/dsh-use-firefox/
+  # DSH 宿主插件 tarball 的公开地址前缀，必须与 DEPLOY_DSH_PATH 对应
+  DSH_BASE_URL: https://sxyz.dev/dl/dsh/
 
 jobs:
   release:
@@ -47,6 +49,12 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME 与版本 $version 不一致"
             exit 1
           fi
+          update_url=$(node -p "require('./extension/manifest.json').browser_specific_settings.gecko.update_url")
+          expected="${UPDATE_BASE_URL}updates.json"
+          if [ "$update_url" != "$expected" ]; then
+            echo "::error::manifest 的 update_url ($update_url) 与 UPDATE_BASE_URL 不一致，应为 $expected"
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Lint extension
@@ -60,7 +68,7 @@ jobs:
           mkdir -p artifacts
           (cd extension && zip -X -r -9 "../artifacts/dsh_use_firefox-$version.zip" . -x '.*')
           npm pack --pack-destination artifacts >/dev/null
-          mv "artifacts/dsh-use-firefox-$version.tgz" artifacts/dsh-use-firefox.tgz
+          cp "artifacts/dsh-use-firefox-$version.tgz" artifacts/dsh-use-firefox.tgz
           ls -l artifacts
 
       - name: Sign extension (AMO unlisted)
@@ -87,7 +95,7 @@ jobs:
           version=${{ steps.ver.outputs.version }}
           xpi=$(ls artifacts/*.xpi | head -n 1)
           mv "$xpi" "artifacts/dsh_use_firefox-$version.xpi"
-          # 稳定文件名，安装文档可用 /dl/dsh-use-firefox/dsh_use_firefox.xpi
+          # 稳定文件名，安装文档可用 /dl/firefox/dsh-use-firefox/dsh_use_firefox.xpi
           cp "artifacts/dsh_use_firefox-$version.xpi" artifacts/dsh_use_firefox.xpi
           ls -l artifacts
 
@@ -109,6 +117,7 @@ jobs:
           version=${{ steps.ver.outputs.version }}
           mkdir -p site
           cp "artifacts/dsh_use_firefox-$version.xpi" "artifacts/dsh_use_firefox.xpi" site/
+          cp "artifacts/dsh_use_firefox-$version.zip" "artifacts/dsh_use_firefox.zip" site/
           node scripts/updates.mjs --version "$version" --out site/updates.json --base "$UPDATE_BASE_URL"
           cat site/updates.json
 
@@ -119,14 +128,16 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_DSH_PATH: ${{ secrets.DEPLOY_DSH_PATH }}
         run: |
           set -euo pipefail
+          version=${{ steps.ver.outputs.version }}
           if [ -z "${DEPLOY_HOST:-}" ]; then
             echo "::warning::未配置 DEPLOY_HOST，跳过上传（更新清单未发布）"
             exit 0
           fi
           if [ -z "${DEPLOY_PATH:-}" ]; then
-            echo "::error::缺少 DEPLOY_PATH（服务器上的发布目录）"
+            echo "::error::缺少 DEPLOY_PATH（服务器上的 Firefox 扩展发布目录）"
             exit 1
           fi
           target=$DEPLOY_PATH
@@ -134,19 +145,55 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/dsh_deploy
           chmod 600 ~/.ssh/dsh_deploy
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          echo "== Firefox extension -> $target"
           ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$target'"
-          rsync -az --delete --chmod=D775,F664 \
+          # 不加 --delete：保留历史版本 xpi/zip，版本化地址才能长期可用。
+          rsync -az --chmod=D775,F664 \
             -e "ssh -i ~/.ssh/dsh_deploy" \
             site/ "$DEPLOY_USER@$DEPLOY_HOST:$target/"
+          ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$target' && { for f in *.xpi *.zip updates.json; do [ -f \"\$f\" ] && sha256sum \"\$f\"; done; } > SHA256SUMS"
           ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "ls -l '$target'"
+
+          if [ -n "${DEPLOY_DSH_PATH:-}" ]; then
+            echo "== DSH host plugin -> $DEPLOY_DSH_PATH"
+            ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_DSH_PATH'"
+            rsync -az --chmod=D775,F664 \
+              -e "ssh -i ~/.ssh/dsh_deploy" \
+              "artifacts/dsh-use-firefox-$version.tgz" "artifacts/dsh-use-firefox.tgz" \
+              "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DSH_PATH/"
+            ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+              "cd '$DEPLOY_DSH_PATH' && cp -f 'dsh-use-firefox-$version.tgz' dsh-use-firefox.tgz && { for f in *.tgz; do [ -f \"\$f\" ] && sha256sum \"\$f\"; done; } > SHA256SUMS"
+            ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "ls -l '$DEPLOY_DSH_PATH'"
+          else
+            echo "::warning::未配置 DEPLOY_DSH_PATH，跳过 DSH 宿主插件上传（GitHub Release 仍会发布 tarball）"
+          fi
 
       - name: Verify public URLs
         if: ${{ !inputs.dry_run }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_DSH_PATH: ${{ secrets.DEPLOY_DSH_PATH }}
         run: |
           set -euo pipefail
+          if [ -z "${DEPLOY_HOST:-}" ]; then
+            echo "::warning::未配置 DEPLOY_HOST，跳过公开地址验证"
+            exit 0
+          fi
           version=${{ steps.ver.outputs.version }}
           base="${UPDATE_BASE_URL%/}"
-          for url in "$base/updates.json" "$base/dsh_use_firefox-$version.xpi"; do
+          urls=(
+            "$base/updates.json"
+            "$base/dsh_use_firefox-$version.xpi"
+            "$base/dsh_use_firefox.xpi"
+            "$base/dsh_use_firefox.zip"
+          )
+          if [ -n "${DEPLOY_DSH_PATH:-}" ]; then
+            dsh_base="${DSH_BASE_URL%/}"
+            urls+=("$dsh_base/dsh-use-firefox.tgz" "$dsh_base/dsh-use-firefox-$version.tgz")
+          fi
+          for url in "${urls[@]}"; do
             echo "== $url"
             code=$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)
             echo "HTTP $code"

@@ -15,12 +15,12 @@
 
 前置条件：DSH 桌面端 `>= 0.2.2-rc.1 < 0.3.0-0`（本版本实测于 `0.2.2-rc.5`），Firefox `>= 142`。
 
-### 1. 宿主插件
+### 1. 宿主插件（DSH 侧）
 
 在 DSH 的 **设置 → 插件 → 添加插件** 里，安装源保持默认（`repo.nju.edu.cn`），地址粘贴稳定链接（始终指向最新版）：
 
 ```text
-https://sxyz.dev/dl/dsh-use-firefox.tgz
+https://sxyz.dev/dl/dsh/dsh-use-firefox.tgz
 ```
 
 装好后重启 DSH。新增的输入框 chip 逻辑在客户端启动时加载。
@@ -28,10 +28,16 @@ https://sxyz.dev/dl/dsh-use-firefox.tgz
 要固定版本时，用版本化地址（回滚、复现都靠它）：
 
 ```text
-https://sxyz.dev/dl/dsh-use-firefox-0.4.8.tgz
+https://sxyz.dev/dl/dsh/dsh-use-firefox-0.4.8.tgz
 ```
 
-GitHub Release 里有同样的资产（`releases/latest/download/dsh-use-firefox.tgz` 或按 tag 取版本化文件），`https://sxyz.dev/dl/SHA256SUMS` 可核对校验和。
+GitHub Release 里有同样的资产（`releases/latest/download/dsh-use-firefox.tgz` 或按 tag 取版本化文件）。校验和：
+
+```text
+https://sxyz.dev/dl/dsh/SHA256SUMS
+```
+
+旧的 `https://sxyz.dev/dl/dsh-use-firefox.tgz` 保留为兼容别名，指向同一个文件；新安装请用上面的新地址。
 
 通过 tarball 安装的插件没有“更新”按钮，升级时**用同一条稳定链接再添加一次**即可（`pnpm add` 会重新下载并替换，实测同一 URL 内容更新后能升到新版本）；只跑 `pnpm install` 可能受 lockfile 完整性约束，不要用那种方式升级。
 
@@ -41,12 +47,12 @@ GitHub Release 里有同样的资产（`releases/latest/download/dsh-use-firefox
 ~/.dsh/browser/ext-token
 ```
 
-### 2. Firefox 扩展
+### 2. Firefox 扩展（浏览器侧）
 
 **普通用户**：直接打开下面这条链接，Firefox 会弹出安装提示（AMO 已签名，可永久安装）：
 
 ```text
-https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox.xpi
+https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox.xpi
 ```
 
 如果浏览器拦了直接安装，就右键另存为 `.xpi`，再到 `about:addons` → 齿轮 → **Install Add-on From File**。
@@ -57,17 +63,37 @@ https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox.xpi
 npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 ```
 
-**临时试用**（不签名）：`about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选 `extension/manifest.json`，Firefox 重启后失效。Release 里的 `dsh_use_firefox-<版本>.zip` 就是这种未签名包。
-
-从 **v0.4.8** 起，扩展的 manifest 带 `update_url`（`https://sxyz.dev/dl/dsh-use-firefox/updates.json`）。装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更早装上、没有这个字段的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
-
-签名包和更新清单托管在自己控制的静态目录里，不依赖 GitHub Pages：
+**临时试用**（不签名）：`about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选 `extension/manifest.json`，Firefox 重启后失效。Release 里的 `dsh_use_firefox-<版本>.zip` 就是这种未签名包，也可以直接从下面下载：
 
 ```text
-https://sxyz.dev/dl/dsh-use-firefox/updates.json
-https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox.xpi        # 稳定名，永远指向最新
-https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox-<版本>.xpi
+https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox.zip
 ```
+
+从 **v0.4.8** 起，扩展的 manifest 带 `update_url`，装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更新清单和稳定包地址：
+
+```text
+https://sxyz.dev/dl/firefox/dsh-use-firefox/updates.json
+https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox.xpi        # 稳定名，永远指向最新
+https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox-<版本>.xpi
+https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox-<版本>.zip
+```
+
+校验和：
+
+```text
+https://sxyz.dev/dl/firefox/dsh-use-firefox/SHA256SUMS
+```
+
+更早装上、没有 `update_url` 的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
+
+> 兼容说明：已安装的 v0.4.8 仍会请求旧清单地址 `https://sxyz.dev/dl/dsh-use-firefox/updates.json`。该地址保留为兼容别名，指向同一份清单，不影响升级；从下一版起 manifest 直接使用上面的新地址。
+
+### 3. 之后怎么升级
+
+| 部分 | 升级方式 |
+| --- | --- |
+| DSH 宿主插件 | 用同一条稳定地址再添加一次；没有更新按钮 |
+| Firefox 扩展 | 自动检查（约 24 小时一次），无需手动重装 |
 
 点击 Firefox 工具栏上的 DSH Use FF 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
 
@@ -138,19 +164,21 @@ git push origin main --tags
 
 工作流依次做这些事：
 
-1. 校验两处版本号与 tag 一致（不一致直接失败，避免把错版本签出去）；
+1. 校验两处版本号、tag，以及 manifest 的 `update_url` 与 `UPDATE_BASE_URL` 一致（不一致直接失败，避免把错版本签出去）；
 2. `web-ext lint --self-hosted` —— 只有自发行（unlisted）渠道才允许 manifest 带 `update_url`；
-3. 打包 `dsh_use_firefox-<版本>.zip` 和 npm tarball；
+3. 打包 `dsh_use_firefox-<版本>.zip` 和 npm tarball，同时保留版本化文件名和稳定名；
 4. 用 AMO 凭据签名（`--channel=unlisted`）；
 5. 建/更新 GitHub Release，上传签名 `.xpi`、稳定名 `dsh_use_firefox.xpi`、tarball 和 zip；
-6. 重新生成 `updates.json`，连同签名 xpi rsync 到服务器上的发布目录（见下面的部署 secrets）；
-7. 用 curl 验证 `sxyz.dev` 上的两个公开地址返回 200。
+6. 重新生成 `updates.json`，连同签名 xpi、未签名 zip 和校验和 rsync 到 Firefox 扩展发布目录；
+7. 如果配置了 DSH 宿主插件发布目录，再上传 tarball 和校验和；
+8. 用 curl 验证公开地址返回 200。
 
 ### 一次性配置
 
 - **AMO 凭据**：在 <https://addons.mozilla.org/en-US/developers/addon/api/key/> 生成 JWT issuer / secret（开发者账号需已开启两步验证），然后加到仓库 **Settings → Secrets and variables → Actions**：`AMO_JWT_ISSUER`、`AMO_JWT_SECRET`。
-- **部署通道**：仓库 **Settings → Secrets and variables → Actions** 加 `DEPLOY_HOST`（服务器地址）、`DEPLOY_USER`（部署用户）、`DEPLOY_SSH_KEY`（部署私钥）、`DEPLOY_PATH`（发布目录，必填）。不配 `DEPLOY_HOST` 时工作流会在部署步骤给出警告并跳过，不会失败。
-- **不走 CI 时**：`scripts/publish-remote.sh [xpi路径]` 用本机 ssh 别名上传，需要先设 `DSH_UPDATE_HOST` / `DSH_UPDATE_PATH`，逻辑与 CI 一致。
+- **部署通道**：仓库 **Settings → Secrets and variables → Actions** 加 `DEPLOY_HOST`（服务器地址）、`DEPLOY_USER`（部署用户）、`DEPLOY_SSH_KEY`（部署私钥）、`DEPLOY_PATH`（Firefox 扩展发布目录，必填，对应 `https://sxyz.dev/dl/firefox/dsh-use-firefox/`）。不配 `DEPLOY_HOST` 时工作流会在部署步骤给出警告并跳过，不会失败。
+- **DSH 宿主插件目录**：可选加 `DEPLOY_DSH_PATH`（对应 `https://sxyz.dev/dl/dsh/`）。不配时跳过 tarball 上传，GitHub Release 里仍然有。
+- **不走 CI 时**：`scripts/publish-remote.sh [xpi路径]` 用本机 ssh 别名上传 xpi、zip、updates.json 和 SHA256SUMS；需要先设 `DSH_UPDATE_HOST` / `DSH_UPDATE_PATH`（Firefox 扩展发布目录）。
 - 同一个版本号在 AMO 只能提交一次；重复提交会报 `version already exists`，此时把版本号加一再发。
 
 只想验证构建、不想签名和发布时，在 Actions 里手动触发 `Release` 并勾上 `dry_run`。

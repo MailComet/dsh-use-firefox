@@ -19,7 +19,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
-const DEFAULT_BASE = 'https://sxyz.dev/dl/dsh-use-firefox/'
+const DEFAULT_BASE = 'https://sxyz.dev/dl/firefox/dsh-use-firefox/'
 
 function readArgs(argv) {
   const out = {}
