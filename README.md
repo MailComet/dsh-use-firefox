@@ -13,7 +13,7 @@
 
 ## 安装
 
-要求 DSH 桌面端 `>= 0.2.2-rc.1 < 0.3.0-0`（本版本实测于 `0.2.2-rc.5`）。
+前置条件：DSH 桌面端 `>= 0.2.2-rc.1 < 0.3.0-0`（本版本实测于 `0.2.2-rc.5`），Firefox `>= 142`。
 
 ### 1. 宿主插件
 
@@ -43,24 +43,21 @@ GitHub Release 里有同样的资产（`releases/latest/download/dsh-use-firefox
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-<版本>.zip` 是未签名包，正式版 Firefox 不能直接安装。
+**普通用户**：直接打开下面这条链接，Firefox 会弹出安装提示（AMO 已签名，可永久安装）：
 
-**临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
+```text
+https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox.xpi
+```
 
-**正式安装**：用 AMO 未列出（unlisted）签名。仓库不保存你的 AMO 凭据：
+如果浏览器拦了直接安装，就右键另存为 `.xpi`，再到 `about:addons` → 齿轮 → **Install Add-on From File**。
+
+**自己签名**（仓库不保存 AMO 凭据）：
 
 ```sh
-cd dsh-use-firefox
 npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 ```
 
-拿到生成的 `.xpi` 后，在 `about:addons` → 齿轮 → **Install Add-on From File** 安装。
-
-也可以直接下载每次 Release 里已经签好名的稳定链接（指向最新版本）：
-
-```text
-https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh_use_firefox.xpi
-```
+**临时试用**（不签名）：`about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选 `extension/manifest.json`，Firefox 重启后失效。Release 里的 `dsh_use_firefox-<版本>.zip` 就是这种未签名包。
 
 从 **v0.4.8** 起，扩展的 manifest 带 `update_url`（`https://sxyz.dev/dl/dsh-use-firefox/updates.json`）。装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更早装上、没有这个字段的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
 
