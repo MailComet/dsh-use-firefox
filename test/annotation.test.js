@@ -248,14 +248,56 @@ test('concurrent annotation creates receive distinct batch numbers', async (t) =
   assert.deepEqual(runtime.pendingAnnotationViews().map((item) => item.seq), [1, 2, 3])
 })
 
-test('normalizePendingNumbers repairs a stale persisted sequence', async (t) => {
+test('normalizeSessionNumbers repairs a stale persisted sequence', async (t) => {
   const { runtime } = await makeRuntime(t)
   const first = await runtime.createAnnotation(null, payload({ comment: '旧记录' }))
   const record = runtime.annotations.get(first.id)
   record.seq = 7
   record.label = '网页注释 7'
   record.mention = `@[网页注释 7](dsh-anno:${record.id})`
-  const pending = runtime.normalizePendingNumbers()
+  const pending = runtime.normalizeSessionNumbers(null)
   assert.equal(pending[0].seq, 1)
   assert.equal(pending[0].label, '网页注释 1')
+})
+
+test('annotation numbering is independent for each DSH session', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const a1 = await runtime.createAnnotation(null, payload({ comment: 'A1' }))
+  const a2 = await runtime.createAnnotation(null, payload({ comment: 'A2' }))
+  runtime.setFocusedSession('session-b')
+  const b1 = await runtime.createAnnotation(null, payload({ comment: 'B1' }))
+  assert.equal(a1.seq, 1)
+  assert.equal(a2.seq, 2)
+  assert.equal(b1.seq, 1)
+
+  await runtime.deleteAnnotation(a1.id)
+  const pending = runtime.pendingAnnotationViews()
+  assert.deepEqual(pending.filter((item) => item.sessionId === 'session-a').map((item) => item.seq), [1])
+  assert.deepEqual(pending.filter((item) => item.sessionId === 'session-b').map((item) => item.seq), [1])
+
+  const b2 = await runtime.createAnnotation(null, payload({ comment: 'B2' }))
+  assert.equal(b2.seq, 2)
+})
+
+test('restarting the host archives an unsent batch and starts a fresh one', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dshuf-annotation-orphan-'))
+  const first = await createRuntime(fakeContext(), { home, mode: 'full', bridgePort: 0, audit: false })
+  try {
+    first.setFocusedSession('session-a')
+    await first.createAnnotation(null, payload({ comment: '重启前' }))
+  } finally {
+    await first.dispose()
+  }
+  const second = await createRuntime(fakeContext(), { home, mode: 'full', bridgePort: 0, audit: false })
+  try {
+    assert.equal(second.pendingAnnotationViews().length, 0)
+    assert.equal([...second.annotations.values()].filter((record) => record.orphaned).length, 1)
+    second.setFocusedSession('session-a')
+    const next = await second.createAnnotation(null, payload({ comment: '重启后' }))
+    assert.equal(next.seq, 1)
+  } finally {
+    await second.dispose()
+    await rm(home, { recursive: true, force: true })
+  }
 })

@@ -152,3 +152,14 @@ test('relabelDraft rewrites mentions after host renumbers a pending annotation',
   assert.equal(plan.references[1].offset, oldOne.length + 1)
   assert.equal(module.relabelDraft(state, [{ id: 'anno-2', label: '网页注释 2', mention: oldTwo }]), undefined)
 })
+
+test('ensureMentions adds missing pending chips without acknowledging', () => {
+  const { module } = loadClient()
+  const item = { id: 'anno-1', label: '网页注释 1', mention: '@[网页注释 1](dsh-anno:anno-1)' }
+  const state = { phase: 'plain', draft: '看一下', occurrences: [] }
+  const plan = module.ensureMentions(state, [item])
+  assert.equal(plan.text, `看一下\n${item.mention}`)
+  assert.equal(plan.references.length, 1)
+  assert.equal(module.ensureMentions({ ...state, draft: plan.text, occurrences: plan.references }, [item]), undefined)
+  assert.equal(module.ensureMentions({ ...state, phase: 'sending' }, [item]), undefined)
+})

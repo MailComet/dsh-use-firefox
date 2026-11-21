@@ -369,7 +369,7 @@ window.__ModuleLoader__.load({
               }
             } }, '在 Firefox 当前标签页开始注释'),
           ),
-          h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Ctrl + Alt + A（macOS 为 MacCtrl + Alt + A）开始注释；Esc 退出。每次发送后，网页标记清除，下一批注释从 1 重新编号。'),
+          h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Ctrl + Alt + A（macOS 为 MacCtrl + Alt + A）开始注释；Esc 退出。每个 DSH 对话独立从 1 编号；发送后网页标记清除，下一批重新从 1 开始。'),
         ),
         h(
           'section',
@@ -536,6 +536,37 @@ window.__ModuleLoader__.load({
           }
         })
       return { text: next, references }
+    }
+
+    function pendingForSession(items, sessionId) {
+      return items
+        .filter((item) => item.sessionId === sessionId || item.sessionId == null)
+        .sort((left, right) => (Number(left.seq) || 0) - (Number(right.seq) || 0))
+    }
+
+    function ensureMentions(state, items) {
+      if (!state || state.phase !== 'plain' || (state.quotes?.length ?? 0) > 0) return undefined
+      let text = typeof state.draft === 'string' ? state.draft : ''
+      const references = Array.isArray(state.occurrences) ? [...state.occurrences] : []
+      const known = new Set(references.map((occurrence) => occurrence.ref))
+      let changed = false
+      for (const item of items) {
+        if (typeof item?.id !== 'string' || typeof item?.mention !== 'string' || item.mention === '') continue
+        if (known.has(item.mention) || text.includes(item.mention)) continue
+        if (text !== '' && !text.endsWith('\n')) text += '\n'
+        references.push({
+          source: 'reference',
+          ref: item.mention,
+          offset: text.length,
+          length: item.mention.length,
+          label: typeof item.label === 'string' && item.label !== '' ? item.label : item.mention,
+          clipboardText: item.mention,
+        })
+        text += item.mention
+        known.add(item.mention)
+        changed = true
+      }
+      return changed ? { text, references } : undefined
     }
 
     function mergeCards(previous, items) {
@@ -739,9 +770,7 @@ window.__ModuleLoader__.load({
 
     function Dock({ sessionId, input, inputActions }) {
       const [cards, setCards] = React.useState([])
-      const cardsRef = React.useRef([])
       const seenDraft = React.useRef(false)
-      React.useEffect(() => { cardsRef.current = cards }, [cards])
       const latest = React.useRef({ input, inputActions })
       React.useEffect(() => { latest.current = { input, inputActions } })
       React.useEffect(() => {
@@ -757,25 +786,33 @@ window.__ModuleLoader__.load({
           try {
             const [items, pending] = await Promise.all([getQueue(sessionId), getPending()])
             if (cancelled) return
-            const byId = new Map(pending.map((item) => [item.id, item]))
-            const removed = cardsRef.current.filter((card) => !byId.has(card.id))
-            let draftState = latest.current.input
-            if (removed.length > 0) {
-              const plan = removeMentions(draftState, removed.map((card) => card.mention))
+            const known = new Set(pending.map((item) => item.id))
+            const sessionPending = pendingForSession(pending, sessionId)
+            let state = latest.current.input
+            const orphans = (state?.occurrences || [])
+              .map((occurrence) => ({ occurrence, id: mentionId(occurrence.ref) }))
+              .filter(({ id }) => id && !known.has(id))
+              .map(({ occurrence }) => occurrence.ref)
+            if (orphans.length > 0) {
+              const plan = removeMentions(state, orphans)
               if (plan) {
                 try { latest.current.inputActions.setDraft(plan) } catch { /* keep the old draft */ }
-                draftState = { ...draftState, draft: plan.text, occurrences: plan.references }
+                state = { ...state, draft: plan.text, occurrences: plan.references }
               }
-              setCards((previous) => previous.filter((card) => byId.has(card.id)))
             }
-            setCards((previous) => previous.map((card) => byId.get(card.id) ? { ...card, ...byId.get(card.id) } : card))
-            const relabeled = relabelDraft(draftState, pending)
+            const relabeled = relabelDraft(state, pending)
             if (relabeled) {
               try { latest.current.inputActions.setDraft(relabeled) } catch { /* keep the old draft */ }
+              state = { ...state, draft: relabeled.text, occurrences: relabeled.references }
             }
+            const ensured = ensureMentions(state, sessionPending)
+            if (ensured) {
+              try { latest.current.inputActions.setDraft(ensured) } catch { /* keep the old draft */ }
+              state = { ...state, draft: ensured.text, occurrences: ensured.references }
+            }
+            setCards(sessionPending)
             if (items.length === 0) return
-            setCards((previous) => mergeCards(previous, items))
-            const plan = composeDraft(latest.current.input, items)
+            const plan = composeDraft(state, items)
             if (!plan) return
             if (plan.text !== undefined) {
               latest.current.inputActions.setDraft({ text: plan.text, references: plan.references })
@@ -825,8 +862,8 @@ window.__ModuleLoader__.load({
         try { latest.current.inputActions.setDraft(plan || { text: base.draft, references: base.occurrences }) } catch { /* leave the draft alone */ }
         try {
           const pending = await getPending()
-          const byId = new Map(pending.map((value) => [value.id, value]))
-          setCards((previous) => previous.map((card) => byId.get(card.id) ? { ...card, ...byId.get(card.id) } : card))
+          const sessionPending = pendingForSession(pending, sessionId)
+          setCards(sessionPending)
           const relabeled = relabelDraft(draftState, pending)
           if (relabeled) latest.current.inputActions.setDraft(relabeled)
         } catch { /* host will reconcile on the next poll */ }
@@ -855,6 +892,7 @@ window.__ModuleLoader__.load({
       composeDraft,
       removeMentions,
       relabelDraft,
+      ensureMentions,
       apply(ctx) {
         ctx.effect(() => {
           const style = document.createElement('style')
