@@ -16,10 +16,12 @@ window.__ModuleLoader__.load({
     const ITEM_PATH = '/ext/use-firefox/item'
     const UPDATE_PATH = '/ext/use-firefox/update'
     const DELETE_PATH = '/ext/use-firefox/delete'
+    const PENDING_PATH = '/ext/use-firefox/pending'
     const OVERVIEW_PATH = '/ext/use-firefox/overview'
     const MODE_PATH = '/ext/use-firefox/mode'
     const PAUSED_PATH = '/ext/use-firefox/paused'
     const ANNOTATION_MODE_PATH = '/ext/use-firefox/annotation-mode'
+    const ANNOTATION_START_PATH = '/ext/use-firefox/annotation-start'
     const TOKEN_PATH = '/ext/use-firefox/token'
     const WIRE = /@\[((?:\\.|[^\\\]\n])*)\]\(dsh-anno:([A-Za-z0-9_-]+)\)/uy
     const POLL_MS = 2000
@@ -128,6 +130,50 @@ window.__ModuleLoader__.load({
     async function getQueue(sessionId) {
       const body = await requestJson(`${QUEUE_PATH}?session=${encodeURIComponent(sessionId)}`)
       return Array.isArray(body?.items) ? body.items : []
+    }
+
+    async function getPending() {
+      const body = await requestJson(PENDING_PATH)
+      return Array.isArray(body?.items) ? body.items : []
+    }
+
+    function mentionId(ref) {
+      const match = /\(dsh-anno:([^)]+)\)$/.exec(String(ref || ''))
+      return match ? match[1] : null
+    }
+
+    function relabelDraft(state, items) {
+      if (!state || state.phase !== 'plain' || (state.quotes?.length ?? 0) > 0) return undefined
+      const byId = new Map(items.map((item) => [item.id, item]))
+      const text = typeof state.draft === 'string' ? state.draft : ''
+      const occurrences = Array.isArray(state.occurrences) ? state.occurrences : []
+      if (occurrences.length === 0) return undefined
+      let changed = false
+      let next = ''
+      let cursor = 0
+      const references = []
+      for (const occurrence of occurrences) {
+        next += text.slice(cursor, occurrence.offset)
+        const id = mentionId(occurrence.ref)
+        const item = id ? byId.get(id) : null
+        const ref = item?.mention || occurrence.ref
+        const label = item?.label || occurrence.label
+        if (ref !== occurrence.ref || label !== occurrence.label) changed = true
+        references.push({
+          source: occurrence.source,
+          ref,
+          offset: next.length,
+          length: ref.length,
+          label,
+          ...(occurrence.appearance === undefined ? {} : { appearance: occurrence.appearance }),
+          clipboardText: ref,
+          ...(occurrence.invalid === undefined ? {} : { invalid: occurrence.invalid }),
+        })
+        next += ref
+        cursor = occurrence.offset + occurrence.length
+      }
+      next += text.slice(cursor)
+      return changed ? { text: next, references } : undefined
     }
 
     async function getItem(id) {
@@ -309,6 +355,20 @@ window.__ModuleLoader__.load({
           { className: 'dshuf-settings-card' },
           h('h3', null, '注释'),
           choices(ANNOTATION_MODE_OPTIONS, data?.annotationMode, (mode) => act(ANNOTATION_MODE_PATH, { mode })),
+          h('div', { className: 'dshuf-setting-actions' },
+            h('button', { type: 'button', disabled: busy, onClick: async () => {
+              setBusy(true)
+              setError('')
+              try {
+                await requestJson(ANNOTATION_START_PATH, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+                setNotice('已进入 Firefox 注释模式；切到 Firefox 点选元素并写评论。')
+              } catch (cause) {
+                setError(cause?.message || String(cause))
+              } finally {
+                setBusy(false)
+              }
+            } }, '在 Firefox 当前标签页开始注释'),
+          ),
           h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Ctrl + Alt + A（macOS 为 MacCtrl + Alt + A）开始注释；Esc 退出。每次发送后，网页标记清除，下一批注释从 1 重新编号。'),
         ),
         h(
@@ -679,7 +739,9 @@ window.__ModuleLoader__.load({
 
     function Dock({ sessionId, input, inputActions }) {
       const [cards, setCards] = React.useState([])
+      const cardsRef = React.useRef([])
       const seenDraft = React.useRef(false)
+      React.useEffect(() => { cardsRef.current = cards }, [cards])
       const latest = React.useRef({ input, inputActions })
       React.useEffect(() => { latest.current = { input, inputActions } })
       React.useEffect(() => {
@@ -693,8 +755,25 @@ window.__ModuleLoader__.load({
         const pull = async () => {
           if (document.visibilityState === 'hidden') return
           try {
-            const items = await getQueue(sessionId)
-            if (cancelled || items.length === 0) return
+            const [items, pending] = await Promise.all([getQueue(sessionId), getPending()])
+            if (cancelled) return
+            const byId = new Map(pending.map((item) => [item.id, item]))
+            const removed = cardsRef.current.filter((card) => !byId.has(card.id))
+            let draftState = latest.current.input
+            if (removed.length > 0) {
+              const plan = removeMentions(draftState, removed.map((card) => card.mention))
+              if (plan) {
+                try { latest.current.inputActions.setDraft(plan) } catch { /* keep the old draft */ }
+                draftState = { ...draftState, draft: plan.text, occurrences: plan.references }
+              }
+              setCards((previous) => previous.filter((card) => byId.has(card.id)))
+            }
+            setCards((previous) => previous.map((card) => byId.get(card.id) ? { ...card, ...byId.get(card.id) } : card))
+            const relabeled = relabelDraft(draftState, pending)
+            if (relabeled) {
+              try { latest.current.inputActions.setDraft(relabeled) } catch { /* keep the old draft */ }
+            }
+            if (items.length === 0) return
             setCards((previous) => mergeCards(previous, items))
             const plan = composeDraft(latest.current.input, items)
             if (!plan) return
@@ -738,12 +817,19 @@ window.__ModuleLoader__.load({
         setCards((previous) => previous.map((item) => item.id === next.id ? { ...item, ...next } : item))
       }
 
-      const removeCard = (item) => {
+      const removeCard = async (item) => {
         setCards((previous) => previous.filter((value) => value.id !== item.id))
-        const plan = removeMentions(latest.current.input, [item.mention])
-        if (plan) {
-          try { latest.current.inputActions.setDraft(plan) } catch { /* leave the draft alone */ }
-        }
+        const base = latest.current.input
+        const plan = removeMentions(base, [item.mention])
+        const draftState = plan ? { ...base, draft: plan.text, occurrences: plan.references } : base
+        try { latest.current.inputActions.setDraft(plan || { text: base.draft, references: base.occurrences }) } catch { /* leave the draft alone */ }
+        try {
+          const pending = await getPending()
+          const byId = new Map(pending.map((value) => [value.id, value]))
+          setCards((previous) => previous.map((card) => byId.get(card.id) ? { ...card, ...byId.get(card.id) } : card))
+          const relabeled = relabelDraft(draftState, pending)
+          if (relabeled) latest.current.inputActions.setDraft(relabeled)
+        } catch { /* host will reconcile on the next poll */ }
       }
 
       if (typeof sessionId !== 'string' || sessionId === '' || cards.length === 0) return null
@@ -768,6 +854,7 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'uiConversation'],
       composeDraft,
       removeMentions,
+      relabelDraft,
       apply(ctx) {
         ctx.effect(() => {
           const style = document.createElement('style')

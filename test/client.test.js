@@ -126,3 +126,29 @@ test('removeMentions removes a chip and rebases the remaining references', () =>
   assert.equal(module.removeMentions(state, ['不存在']), undefined)
   assert.equal(module.removeMentions({ ...state, phase: 'sending' }, [one]), undefined)
 })
+
+test('relabelDraft rewrites mentions after host renumbers a pending annotation', () => {
+  const { module } = loadClient()
+  const oldOne = '@[网页注释 1](dsh-anno:anno-1)'
+  const oldTwo = '@[网页注释 2](dsh-anno:anno-2)'
+  const newOne = '@[网页注释 1](dsh-anno:anno-2)'
+  const state = {
+    phase: 'plain',
+    draft: `${oldOne}\n${oldTwo}`,
+    occurrences: [
+      { occurrenceId: 1, source: 'reference', ref: oldOne, offset: 0, length: oldOne.length, label: '网页注释 1', clipboardText: oldOne },
+      { occurrenceId: 2, source: 'reference', ref: oldTwo, offset: oldOne.length + 1, length: oldTwo.length, label: '网页注释 2', clipboardText: oldTwo },
+    ],
+  }
+  const plan = module.relabelDraft(state, [{
+    id: 'anno-2',
+    seq: 1,
+    label: '网页注释 1',
+    mention: newOne,
+  }])
+  assert.equal(plan.text, `${oldOne}\n${newOne}`)
+  assert.equal(plan.references[1].ref, newOne)
+  assert.equal(plan.references[1].label, '网页注释 1')
+  assert.equal(plan.references[1].offset, oldOne.length + 1)
+  assert.equal(module.relabelDraft(state, [{ id: 'anno-2', label: '网页注释 2', mention: oldTwo }]), undefined)
+})

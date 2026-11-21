@@ -26,7 +26,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.1/dsh-use-firefox-0.3.1.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.2/dsh-use-firefox-0.3.2.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +39,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.1/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.3.1.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.3.2.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -83,7 +83,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 - 消息不会自动发送；发送时宿主才把页面、selector、评论、元素详情、选中文字和截图路径附加到模型上下文。
 - 每页最多 20 条注释。清空草稿后预览卡自动消失。
 
-输入框上方的注释卡在发送前可以修改评论或删除；发送后，历史消息里的注释卡变成只读的截图/评论/详情卡，点击可以查看当时的内容，但不能修改。发送后 Firefox 页面上的编号标记会自动清除，下一批注释从 1 重新编号。模型需要看截图的视觉细节时，可以对上下文里的截图路径调用 `read_image`。
+输入框上方的注释卡在发送前可以修改评论或删除；发送后，历史消息里的注释卡变成只读的截图/评论/详情卡，点击可以查看当时的内容，但不能修改。新增、修改、删除会在 Firefox 与 DSH 之间同步。未发送注释按当前批次 1..N 编号，删除后自动重排；发送后网页标记清除，下一批从 1 重新编号。模型需要看截图的视觉细节时，可以对上下文里的截图路径调用 `read_image`。
 
 ## 模式
 

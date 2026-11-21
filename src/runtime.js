@@ -82,7 +82,7 @@ export class Runtime {
     this.focusedSessionId = null
     this.annotationMode = 'element'
     this.started = false
-    this.pluginVersion = '0.3.1'
+    this.pluginVersion = '0.3.2'
     this.groupTitle = config.groupTitle || 'DSH'
     this.groupColor = config.groupColor || 'blue'
     this.requestTimeoutMs = Number(config.requestTimeoutMs || 60_000)
@@ -133,9 +133,63 @@ export class Runtime {
       .filter((record) => !record.sent && !record.delivered)
       .sort((left, right) => (Number(left.seq) || 0) - (Number(right.seq) || 0))
       .map((record) => record.id)
-    this.annotationSeq = this.annotationQueue.length > 0
-      ? Math.max(...this.annotationQueue.map((id) => Number(this.annotations.get(id)?.seq) || 0))
-      : 0
+    this.normalizePendingNumbers()
+  }
+
+  pendingAnnotationViews() {
+    return [...this.annotations.values()]
+      .filter((record) => !record.sent && !record.delivered)
+      .sort((left, right) => (Number(left.seq) || 0) - (Number(right.seq) || 0))
+      .map((record) => this.annotationView(record))
+  }
+
+  normalizePendingNumbers() {
+    const pending = [...this.annotations.values()]
+      .filter((record) => !record.sent && !record.delivered)
+      .sort((left, right) => (Date.parse(left.createdAt) || 0) - (Date.parse(right.createdAt) || 0)
+        || (Number(left.seq) || 0) - (Number(right.seq) || 0))
+    const changed = []
+    let seq = 0
+    for (const record of pending) {
+      seq += 1
+      const label = `网页注释 ${seq}`
+      const mention = `@[${label}](dsh-anno:${record.id})`
+      if (record.seq !== seq || record.label !== label || record.mention !== mention) {
+        record.seq = seq
+        record.label = label
+        record.mention = mention
+        changed.push(record)
+      }
+    }
+    this.annotationSeq = seq
+    for (const record of changed) void this.persistAnnotation(record)
+    return pending.map((record) => this.annotationView(record))
+  }
+
+  syncPendingMarkers() {
+    if (!this.bridge) return
+    const items = this.pendingAnnotationViews()
+      .map((item) => ({
+        id: item.id,
+        seq: item.seq,
+        label: item.label,
+        comment: item.comment,
+        tabId: item.tabId,
+      }))
+      .filter((item) => Number.isInteger(item.tabId) && item.tabId > 0)
+    if (items.length === 0) return
+    void Promise.resolve()
+      .then(() => this.bridge.request('annotation.sync', { items }, { timeoutMs: 10_000 }))
+      .catch((error) => this.logger.debug?.(`use-firefox marker sync failed: ${error.message}`))
+  }
+
+  async startAnnotationOnActiveTab() {
+    if (!this.bridge) throw new BridgeError('BRIDGE_NOT_STARTED', '扩展桥尚未启动')
+    const result = await this.bridge.request('annotation.start-active', {
+      mode: this.annotationMode,
+    }, { timeoutMs: 15_000 })
+    void this.audit({ type: 'annotation-start', mode: this.annotationMode, tab: result?.tabId ?? null })
+    return result
   }
 
   async persistAnnotation(record) {
@@ -148,6 +202,7 @@ export class Runtime {
     record.comment = truncate(comment ?? '', 4000)
     record.updatedAt = new Date().toISOString()
     await this.persistAnnotation(record)
+    this.syncPendingMarkers()
     await this.audit({ type: 'annotation-update', id: record.id, comment: oneLine(record.comment, 300) })
     return this.annotationView(record)
   }
@@ -159,9 +214,17 @@ export class Runtime {
     this.annotations.delete(key)
     this.annotationQueue = this.annotationQueue.filter((value) => value !== key)
     if (record.imagePath) await unlink(record.imagePath).catch(() => {})
+    const tabId = Number(record.tabId)
+    if (Number.isInteger(tabId) && tabId > 0 && this.bridge) {
+      void Promise.resolve()
+        .then(() => this.bridge.request('annotation.clear', { ids: [key], tabs: [tabId] }, { timeoutMs: 10_000 }))
+        .catch((error) => this.logger.debug?.(`use-firefox marker clear failed: ${error.message}`))
+    }
     await appendJsonl(annotationsPath(this.home), { op: 'delete', id: key, at: new Date().toISOString() })
     await this.audit({ type: 'annotation-delete', id: key, seq: record.seq })
-    return { deleted: true, id: key }
+    const pending = this.normalizePendingNumbers()
+    this.syncPendingMarkers()
+    return { deleted: true, id: key, pending }
   }
 
   async start() {
@@ -185,7 +248,10 @@ export class Runtime {
       onEvent: (client, event, data) => this.handleExtensionEvent(client, event, data),
       onRequest: (client, op, params) => this.handleExtensionRequest(client, op, params),
       onClientsChanged: (clients) => {
-        if (clients.length > 0) this.logger.info?.(`use-firefox clients: ${clients.map((c) => `${c.label || c.id}`).join(', ')}`)
+        if (clients.length > 0) {
+          this.logger.info?.(`use-firefox clients: ${clients.map((c) => `${c.label || c.id}`).join(', ')}`)
+          setTimeout(() => this.syncPendingMarkers(), 600)
+        }
       },
     })
     try {
@@ -381,6 +447,7 @@ export class Runtime {
       this.annotationQueue.push(id)
     }
     await this.persistAnnotation(record)
+    this.syncPendingMarkers()
     await this.audit({
       type: 'annotation-create',
       id,
@@ -404,6 +471,7 @@ export class Runtime {
     return {
       id: record.id,
       seq: Number.isFinite(seq) ? seq : null,
+      sessionId: record.sessionId ?? null,
       label,
       mention: `@[${label}](dsh-anno:${record.id})`,
       comment: record.comment,
@@ -515,8 +583,8 @@ export class Runtime {
           }, { timeoutMs: 10_000 }))
           .catch((error) => this.logger.debug?.(`use-firefox marker clear failed: ${error.message}`))
       }
-      const unsent = [...this.annotations.values()].filter((record) => !record.sent && !record.delivered)
-      this.annotationSeq = unsent.length > 0 ? Math.max(...unsent.map((record) => Number(record.seq) || 0)) : 0
+      this.normalizePendingNumbers()
+      this.syncPendingMarkers()
       void this.audit({ type: 'annotation-context', ids: records.map((record) => record.id) })
     }
     return output

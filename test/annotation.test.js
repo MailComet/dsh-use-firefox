@@ -205,3 +205,57 @@ test('annotation routes expose queue, ack, focus, item and image', async (t) => 
   dispose()
   assert.equal(routes.size, 0)
 })
+test('pending annotation numbers are compacted on delete and restart after send', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const one = await runtime.createAnnotation(null, payload({ comment: '一' }))
+  const two = await runtime.createAnnotation(null, payload({ comment: '二' }))
+  const three = await runtime.createAnnotation(null, payload({ comment: '三' }))
+
+  assert.deepEqual(runtime.pendingAnnotationViews().map((item) => item.seq), [1, 2, 3])
+
+  await runtime.deleteAnnotation(two.id)
+  assert.deepEqual(runtime.pendingAnnotationViews().map((item) => item.seq), [1, 2])
+
+  const four = await runtime.createAnnotation(null, payload({ comment: '四' }))
+  assert.equal(four.seq, 3)
+  assert.equal(four.label, '网页注释 3')
+
+  const items = runtime.pendingAnnotationViews()
+  const message = {
+    role: 'user',
+    content: [{ type: 'text', text: items.map((item) => item.mention).join('\n') }],
+  }
+  const output = await runtime.prepareAnnotationMentions([message])
+  assert.equal(output.length, 2)
+  assert.equal(runtime.pendingAnnotationViews().length, 0)
+
+  const next = await runtime.createAnnotation(null, payload({ comment: '下一批' }))
+  assert.equal(next.seq, 1)
+  assert.equal(next.label, '网页注释 1')
+  assert.equal(runtime.annotationItem(one.id).seq, 1)
+  assert.equal(runtime.annotationItem(three.id).seq, 2)
+})
+
+test('concurrent annotation creates receive distinct batch numbers', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  const created = await Promise.all([
+    runtime.createAnnotation(null, payload({ comment: '并发一' })),
+    runtime.createAnnotation(null, payload({ comment: '并发二' })),
+    runtime.createAnnotation(null, payload({ comment: '并发三' })),
+  ])
+  assert.deepEqual(created.map((item) => item.seq).sort((a, b) => a - b), [1, 2, 3])
+  assert.deepEqual(runtime.pendingAnnotationViews().map((item) => item.seq), [1, 2, 3])
+})
+
+test('normalizePendingNumbers repairs a stale persisted sequence', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  const first = await runtime.createAnnotation(null, payload({ comment: '旧记录' }))
+  const record = runtime.annotations.get(first.id)
+  record.seq = 7
+  record.label = '网页注释 7'
+  record.mention = `@[网页注释 7](dsh-anno:${record.id})`
+  const pending = runtime.normalizePendingNumbers()
+  assert.equal(pending[0].seq, 1)
+  assert.equal(pending[0].label, '网页注释 1')
+})

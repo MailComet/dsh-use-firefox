@@ -773,6 +773,22 @@
         }
         return { cancelled: true }
       }
+      case 'annotation.sync': {
+        const items = Array.isArray(params.items) ? params.items : []
+        const byTab = new Map()
+        for (const item of items) {
+          const tabId = Number(item?.tabId)
+          if (!Number.isInteger(tabId) || tabId <= 0) continue
+          if (!byTab.has(tabId)) byTab.set(tabId, [])
+          byTab.get(tabId).push(item)
+        }
+        for (const [tabId, entries] of byTab) {
+          try { await sendContent(tabId, 'annotation.sync', { items: entries }) } catch { /* tab may be gone */ }
+        }
+        return { synced: items.length }
+      }
+      case 'annotation.start-active':
+        return startAnnotationOnActiveTab(params.mode || state.annotationMode)
       case 'annotation.clear': {
         const ids = Array.isArray(params.ids) ? params.ids.map(String) : []
         const tabs = Array.isArray(params.tabs) ? params.tabs.map(Number).filter((id) => Number.isInteger(id) && id > 0) : []

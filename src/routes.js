@@ -42,6 +42,27 @@ export function registerAnnotationRoutes(webServer, runtime) {
     sendJson(response, 200, { ok: true, items: runtime.queueAnnotations(sessionId || null) })
   })
 
+  add('/annotation-start', async (request, response) => {
+    if (request.method !== 'POST') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    try {
+      const result = await runtime.startAnnotationOnActiveTab()
+      sendJson(response, 200, { ok: true, result })
+    } catch (error) {
+      sendJson(response, 409, { ok: false, error: error.message })
+    }
+  })
+
+  add('/pending', async (request, response) => {
+    if (request.method !== 'GET') {
+      sendJson(response, 405, { ok: false, error: 'method' })
+      return
+    }
+    sendJson(response, 200, { ok: true, items: runtime.pendingAnnotationViews() })
+  })
+
   add('/queue/ack', async (request, response) => {
     if (request.method !== 'POST') {
       sendJson(response, 405, { ok: false, error: 'method' })

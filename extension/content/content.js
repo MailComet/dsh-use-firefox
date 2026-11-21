@@ -1523,6 +1523,23 @@ const ANNO_ICONS = {
         return waitFor(params)
       case 'annotation.start':
         return startAnnotation(params)
+      case 'annotation.sync': {
+        const items = Array.isArray(params.items) ? params.items : []
+        let updated = 0
+        for (const item of items) {
+          const record = annoMarkers.get(String(item?.id || ''))
+          if (!record) continue
+          if (Number.isFinite(Number(item.seq))) record.seq = Number(item.seq)
+          if (typeof item.comment === 'string') record.comment = item.comment
+          if (record.marker) {
+            record.marker.textContent = String(record.seq)
+            record.marker.title = record.comment || item.label || `网页注释 ${record.seq}`
+          }
+          updated += 1
+        }
+        positionAnnoMarkers()
+        return { updated }
+      }
       case 'annotation.clear': {
         const ids = new Set((params.ids || []).map(String))
         let cleared = 0
