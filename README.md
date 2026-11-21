@@ -13,7 +13,7 @@
 
 ## 安装
 
-前置条件：DSH 桌面端 `0.2.2-rc.5`（官方当前最新版，本插件按该版本构建并实测；DSH 仍在 developer preview，升级到更高版本前先看 release notes），Firefox `>= 142`。
+前置条件：DSH 桌面端 `0.2.2-rc.5`（官方当前最新版，本插件按该版本构建并实测；DSH 仍在 developer preview，升级到更高版本前先看 release notes）。Firefox `>= 142`（manifest 声明的最低版本；`142.0` 已验证安装/启动，日常实测在 `160.0.1`）。
 
 ### 1. 宿主插件（DSH 侧）
 
