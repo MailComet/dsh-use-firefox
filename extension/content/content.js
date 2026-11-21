@@ -36,6 +36,12 @@
     return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
   }
 
+  function textInfo(value, max) {
+    const full = String(value ?? '').replace(/\s+/g, ' ').trim()
+    const text = full.slice(0, max)
+    return { text, textTruncated: full.length > text.length, textLength: full.length }
+  }
+
   function roleOf(element) {
     const explicit = element.getAttribute?.('role')
     if (explicit) return explicit.trim().toLowerCase()
@@ -655,9 +661,66 @@
     return parts.join(' > ')
   }
 
+  const STABLE_SELECTOR_ATTRS = ['data-testid', 'data-test', 'data-qa', 'data-cy', 'name', 'aria-label']
+
+  function selectorIsUnique(selector) {
+    try {
+      return document.querySelectorAll(selector).length === 1
+    } catch {
+      return false
+    }
+  }
+
+  function stableSelectorOf(element) {
+    for (const attr of STABLE_SELECTOR_ATTRS) {
+      const value = element.getAttribute?.(attr)
+      if (!value) continue
+      const candidate = `${element.tagName.toLowerCase()}[${attr}="${cssEscape(value)}"]`
+      if (selectorIsUnique(candidate)) return candidate
+    }
+    return ''
+  }
+
+  function pathSegment(element) {
+    let part = element.tagName.toLowerCase()
+    const parent = element.parentElement
+    if (parent) {
+      const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === element.tagName)
+      if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(element) + 1})`
+    }
+    return part
+  }
+
+  function pathFrom(ancestor, element) {
+    const parts = []
+    let current = element
+    while (current && current !== ancestor && current.nodeType === 1) {
+      parts.unshift(pathSegment(current))
+      current = current.parentElement
+    }
+    return parts.join(' > ')
+  }
+
   function selectorOf(element) {
     if (!(element instanceof Element)) return ''
-    if (element.id) return `#${cssEscape(element.id)}`
+    if (element.id) {
+      const byId = `#${cssEscape(element.id)}`
+      if (selectorIsUnique(byId)) return byId
+    }
+    const direct = stableSelectorOf(element)
+    if (direct) return direct
+    let ancestor = element.parentElement
+    for (let depth = 0; ancestor && ancestor !== document.body && depth < 5; depth += 1) {
+      const anchor = ancestor.id
+        ? `#${cssEscape(ancestor.id)}`
+        : stableSelectorOf(ancestor)
+      if (anchor) {
+        const path = pathFrom(ancestor, element)
+        const candidate = path ? `${anchor} > ${path}` : anchor
+        if (selectorIsUnique(candidate)) return candidate
+      }
+      ancestor = ancestor.parentElement
+    }
     const parts = []
     let current = element
     for (let depth = 0; current && current.nodeType === 1 && depth < 6; depth += 1) {
@@ -674,6 +737,16 @@
       if (current === document.body) break
     }
     return parts.join(' > ')
+  }
+
+  function semanticOf(element) {
+    if (!(element instanceof Element)) return null
+    const semantic = {}
+    const testId = element.getAttribute('data-testid') || element.getAttribute('data-test') || ''
+    if (testId) semantic.testId = testId.slice(0, 200)
+    const ariaLabel = element.getAttribute('aria-label') || ''
+    if (ariaLabel) semantic.ariaLabel = ariaLabel.slice(0, 300)
+    return Object.keys(semantic).length > 0 ? semantic : null
   }
 
   function elementInfo(element) {
@@ -1159,6 +1232,7 @@ const ANNO_ICONS = {
       kind: 'element',
       selected: null,
       selectedText: '',
+      selectedTextLength: 0,
       rect: null,
       pageRect: null,
       down: false,
@@ -1208,6 +1282,7 @@ const ANNO_ICONS = {
           draft.kind = 'text'
           draft.selected = anchor || document.body
           draft.selectedText = text.slice(0, 4000)
+          draft.selectedTextLength = text.length
           draft.rect = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
           draft.pageRect = { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height }
           draft.phase = 'card'
@@ -1330,6 +1405,7 @@ const ANNO_ICONS = {
       kind: record.kind || 'element',
       selected: element,
       selectedText: '',
+      selectedTextLength: 0,
       rect,
       pageRect: record.pageRect || { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height },
       down: false,
@@ -1470,20 +1546,28 @@ const ANNO_ICONS = {
       }
       if (!capture?.ok || !capture.dataUrl) throw new Error(capture?.error || '无法截取页面')
       let imageDataUrl = capture.dataUrl
+      let captureRect = { x: 0, y: 0, width: viewportWidth, height: viewportHeight }
+      let screenshotPartial = true
       try {
         const pad = 8
         const left = Math.max(0, rect.x - pad)
         const top = Math.max(0, rect.y - pad)
         const right = Math.min(viewportWidth, rect.x + rect.width + pad)
         const bottom = Math.min(viewportHeight, rect.y + rect.height + pad)
-        imageDataUrl = await cropDataUrl(capture.dataUrl, {
+        captureRect = {
           x: left,
           y: top,
           width: Math.max(1, right - left),
           height: Math.max(1, bottom - top),
-        }, viewportWidth, viewportHeight)
-      } catch { /* use the full screenshot */ }
+        }
+        screenshotPartial = rect.x < 0 || rect.y < 0
+          || rect.x + rect.width > viewportWidth || rect.y + rect.height > viewportHeight
+        imageDataUrl = await cropDataUrl(capture.dataUrl, captureRect, viewportWidth, viewportHeight)
+      } catch { /* use the full screenshot and mark it as partial */ }
       const selected = draft.selected
+      const selectedText = draft.selectedText || selected?.innerText || selected?.textContent || ''
+      const text = textInfo(selectedText, draft.kind === 'text' ? 2000 : 400)
+      const textLength = Math.max(text.textLength, Number(draft.selectedTextLength) || 0)
       const payload = {
         kind: draft.kind,
         requestId: draft.requestId || undefined,
@@ -1491,13 +1575,18 @@ const ANNO_ICONS = {
         selector: selected ? selectorOf(selected) : '',
         targetPath: selected ? targetPathOf(selected) : '',
         tag: selected?.tagName?.toLowerCase() || (draft.kind === 'region' ? 'region' : 'text'),
-        text: draft.selectedText || collapse(selected?.innerText || selected?.textContent || '', 2000),
+        text: text.text,
+        textTruncated: textLength > text.text.length,
+        textLength,
         html: selected ? String(selected.outerHTML || '').slice(0, 4000) : '',
         descriptor: selected ? descriptorFor(selected) : null,
+        semantic: selected ? semanticOf(selected) : null,
         details: detailsFor(selected),
         rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
         pageRect: draft.pageRect,
         viewport: { width: viewportWidth, height: viewportHeight, dpr: window.devicePixelRatio },
+        captureRect,
+        screenshotPartial,
         page: { url: location.href, title: document.title },
         imageDataUrl,
       }

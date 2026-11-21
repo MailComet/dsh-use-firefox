@@ -139,10 +139,43 @@ test('pre-step merges Qoder-style annotation evidence into the user message', as
   assert.match(text, /https:\/\/example\.com\/form/)
   assert.match(text, /annotations\/.*\.png/)
   assert.match(text, /"bounds":/)
+  assert.doesNotMatch(text, /"targets":/)
+  assert.doesNotMatch(text, /"changes":/)
 
   const again = await runtime.prepareAnnotationMentions([...messages])
   assert.equal(again.length, messages.length)
   assert.equal(runtime.annotationItem(created.id).label, '网页注释 1')
+})
+
+test('large annotation evidence carries capture and truncation metadata without duplicate fields', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const created = await runtime.createAnnotation(null, payload({
+    text: 'x'.repeat(400),
+    textTruncated: true,
+    textLength: 1247,
+    targetPath: 'body > main',
+    captureRect: { x: 0, y: 0, width: 1280, height: 876 },
+    screenshotPartial: true,
+    semantic: { testId: 'commit-list' },
+    descriptor: { role: 'list', name: 'Commits' },
+  }))
+  runtime.queueAnnotations('session-a')
+  runtime.ackAnnotations([created.id])
+  const messages = await runtime.prepareAnnotationMentions([{
+    role: 'user',
+    content: [{ type: 'text', text: `@[网页注释 1](dsh-anno:${created.id})` }],
+  }])
+  const text = messages[0].content.map((block) => block.text || '').join('\n')
+  assert.match(text, /"textTruncated":true/)
+  assert.match(text, /"textLength":1247/)
+  assert.match(text, /"captureRect":\{"x":0,"y":0,"width":1280,"height":876\}/)
+  assert.match(text, /"screenshotPartial":true/)
+  assert.match(text, /"role":"list"/)
+  assert.match(text, /"name":"Commits"/)
+  assert.match(text, /"semantic":\{"testId":"commit-list"\}/)
+  assert.doesNotMatch(text, /"targets":/)
+  assert.doesNotMatch(text, /"changes":/)
 })
 
 test('annotation routes expose queue, ack, focus, item and image', async (t) => {

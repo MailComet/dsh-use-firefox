@@ -54,6 +54,16 @@ function normalizeAnnotationMode(value) {
   return ['element', 'text', 'region'].includes(value) ? value : 'element'
 }
 
+function normalizeRect(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const x = Number(value.x)
+  const y = Number(value.y)
+  const width = Number(value.width)
+  const height = Number(value.height)
+  if (![x, y, width, height].every(Number.isFinite)) return null
+  return { x, y, width: Math.max(0, width), height: Math.max(0, height) }
+}
+
 function annotationId() {
   const now = new Date()
   const stamp = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
@@ -82,7 +92,7 @@ export class Runtime {
     this.focusedSessionId = null
     this.annotationMode = 'element'
     this.started = false
-    this.pluginVersion = '0.4.4'
+    this.pluginVersion = '0.4.5'
     this.groupTitle = config.groupTitle || 'DSH'
     this.groupColor = config.groupColor || 'blue'
     this.requestTimeoutMs = Number(config.requestTimeoutMs || 60_000)
@@ -442,12 +452,19 @@ export class Runtime {
       targetPath: truncate(payload.targetPath ?? '', 2000),
       tag: truncate(payload.tag ?? '', 80),
       text: truncate(payload.text ?? '', 8000),
+      textTruncated: payload.textTruncated === true,
+      textLength: Number.isFinite(Number(payload.textLength)) ? Number(payload.textLength) : undefined,
       html: truncate(payload.html ?? '', 8000),
       descriptor: payload.descriptor ?? null,
+      semantic: payload.semantic && typeof payload.semantic === 'object' && !Array.isArray(payload.semantic)
+        ? payload.semantic
+        : null,
       details: payload.details ?? null,
       rect: payload.rect ?? null,
       pageRect: payload.pageRect ?? null,
       viewport: payload.viewport ?? null,
+      captureRect: normalizeRect(payload.captureRect),
+      screenshotPartial: payload.screenshotPartial === true,
       imagePath,
       tabId: Number.isInteger(payload.tabId) ? payload.tabId : null,
       inDshGroup: typeof payload.inDshGroup === 'boolean' ? payload.inDshGroup : null,
@@ -587,23 +604,33 @@ export class Runtime {
         }
       : undefined
     const targetPath = record.targetPath || record.selector || ''
-    const target = {
-      selector: record.selector || '',
-      targetPath,
-      tagName: record.tag || '',
-      text: record.text || '',
-      ...(bounds === undefined ? {} : { bounds }),
-    }
+    const descriptor = record.descriptor && typeof record.descriptor === 'object' ? record.descriptor : null
+    const role = typeof descriptor?.role === 'string' ? descriptor.role : ''
+    const name = typeof descriptor?.name === 'string' ? descriptor.name : ''
+    const semantic = record.semantic && typeof record.semantic === 'object' && !Array.isArray(record.semantic)
+      ? record.semantic
+      : null
+    const captureRect = normalizeRect(record.captureRect)
     const evidence = {
       url: record.page?.url || '',
       title: record.page?.title || '',
       selector: record.selector || '',
       targetPath,
       tagName: record.tag || '',
+      ...(role === '' ? {} : { role }),
+      ...(name === '' ? {} : { name }),
+      ...(semantic === null ? {} : { semantic }),
       text: record.text || '',
+      ...(record.textTruncated === true ? {
+        textTruncated: true,
+        textLength: Number.isFinite(Number(record.textLength))
+          ? Number(record.textLength)
+          : String(record.text || '').length,
+      } : {}),
       ...(bounds === undefined ? {} : { bounds }),
-      targets: [target],
-      changes: [],
+      ...(captureRect === null ? {} : { captureRect }),
+      ...(record.screenshotPartial === true ? { screenshotPartial: true } : {}),
+      ...(record.viewport && typeof record.viewport === 'object' ? { viewport: record.viewport } : {}),
       tabId: record.tabId ?? null,
       inDshGroup: record.inDshGroup ?? null,
     }
