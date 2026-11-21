@@ -3,7 +3,7 @@ export const GUIDE = `# Firefox browser (dsh-use-firefox)
 Use the browser_* tools when the user asks you to read or operate web pages in Firefox.
 
 - The user's real Firefox is driven by the companion MV3 extension. All agent work happens in tabs inside the Firefox native tab group named "DSH". Never operate tabs outside that group; the user's personal tabs are off limits.
-- Start with browser_status. If Firefox is not connected, tell the user to install/open the DSH Use Firefox extension and fill the port and token in its toolbar popup.
+- Start with browser_status. If Firefox is not connected, tell the user to install/open the DSH Use FF extension and fill the port and token in its toolbar popup.
 - Open pages with browser_navigate or browser_tabs action=open. Use browser_read to get a text snapshot with element refs. Refs are valid only for the page state that produced them; call browser_read again after navigation or DOM changes.
 - Act with browser_click / browser_type / browser_press by ref. Read the page again to verify. Screenshots are saved to disk; call read_image with the returned path when you need to inspect one visually.
 - The user's mode is set only by the user: full, auto, ask, or readonly. Never claim to change it. In auto/ask modes some actions require user approval; if approval is denied or unavailable, stop and explain.

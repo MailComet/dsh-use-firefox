@@ -554,7 +554,7 @@
     } catch (error) {
       throw new ExtError(
         'INJECT_FAILED',
-        `无法向页面注入 DSH Use Firefox 脚本: ${error.message || error}`,
+        `无法向页面注入 DSH Use FF 脚本: ${error.message || error}`,
         '确认扩展有访问该站点的权限；浏览器内部页无法注入。',
       )
     }

@@ -1,4 +1,4 @@
-# DSH Use Firefox — Firefox extension
+# DSH Use FF — Firefox extension
 
 This extension is the browser half of the `dsh-use-firefox` DSH plugin. It connects to a token-authenticated loopback WebSocket bridge opened by the DSH host plugin.
 

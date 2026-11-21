@@ -1,4 +1,4 @@
-/* DSH Use Firefox — Web Client half.
+/* DSH Use FF — Web Client half.
  * Queues annotations into the composer as reference chips and shows the
  * annotation cards above the input. The annotation body is attached by the
  * host at agent/pre-step when the message is sent; sent messages render the

@@ -70,7 +70,7 @@ https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox.xpi        # 稳定名，永
 https://sxyz.dev/dl/dsh-use-firefox/dsh_use_firefox-<版本>.xpi
 ```
 
-点击 Firefox 工具栏上的 DSH Use Firefox 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
+点击 Firefox 工具栏上的 DSH Use FF 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
 
 - 端口：`39271`（除非你改了宿主配置）
 - token：`~/.dsh/browser/ext-token` 的内容

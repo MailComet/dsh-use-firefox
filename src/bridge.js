@@ -314,7 +314,7 @@ export class Bridge {
     throw new BridgeError(
       'NO_CLIENT',
       'Firefox 扩展尚未连接',
-      `在 Firefox 中安装并打开 DSH Use Firefox 扩展，在工具栏弹窗填入 ${this.host}:${this.port} 的端口和 ~/.dsh/browser/ext-token 的令牌。`,
+      `在 Firefox 中安装并打开 DSH Use FF 扩展，在工具栏弹窗填入 ${this.host}:${this.port} 的端口和 ~/.dsh/browser/ext-token 的令牌。`,
     )
   }
 
