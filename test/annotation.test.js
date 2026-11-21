@@ -343,3 +343,21 @@ test('pre-step attaches the annotation screenshot as an image block', async () =
     await rm(home, { recursive: true, force: true })
   }
 })
+
+test('personal-tab annotation gives tab id and warns against reopening', async (t) => {
+  const { runtime } = await makeRuntime(t)
+  runtime.setFocusedSession('session-a')
+  const created = await runtime.createAnnotation(null, payload({ tabId: 15, inDshGroup: false }))
+  runtime.queueAnnotations('session-a')
+  runtime.ackAnnotations([created.id])
+  const messages = await runtime.prepareAnnotationMentions([{
+    role: 'user',
+    content: [{ type: 'text', text: `@[网页注释 1](dsh-anno:${created.id})` }],
+  }])
+  const text = messages[0].content.map((block) => block.text || '').join('\n')
+  assert.match(text, /"tabId":15/)
+  assert.match(text, /"inDshGroup":false/)
+  assert.match(text, /tab 15/)
+  assert.match(text, /不要为了核对注释重新打开页面/)
+  assert.match(text, /只读模式/)
+})

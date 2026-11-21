@@ -26,7 +26,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.0/dsh-use-firefox-0.4.0.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.1/dsh-use-firefox-0.4.1.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +39,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.0/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.4.0.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.4.1.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -92,9 +92,11 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 | `full`（默认） | 不询问，浏览器操作直接执行；仍保留审计、急停和工作区边界。 |
 | `auto` | 普通操作直接执行；提交、发送、支付、删除、密码/OTP、验证码和上传会询问。 |
 | `ask` | 所有改变页面的操作都询问。 |
-| `readonly` | 只读、截图、注释、列出/切换标签页；不导航、不点击、不输入、不上传、不执行 JS。 |
+| `readonly` | 只读、截图、注释、列出/切换标签页；不导航、不点击、不输入、不上传、不执行 JS。只读模式可以直接读取、截图和列出 DSH 分组外的 Firefox 标签页。 |
 
 模式由用户在 DSH 的插件详情页或输入框旁设置并持久化。Agent 没有修改模式的工具。
+
+组外个人标签页上的注释会带上 `tabId` 和 `inDshGroup: false`，并明确提示模型不要仅仅为了核对注释而重开页面；只读模式下模型可以直接读取该 `tabId`。
 
 ## 安全与边界
 

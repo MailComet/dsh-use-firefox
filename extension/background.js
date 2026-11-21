@@ -352,7 +352,7 @@
       throw new ExtError(
         'NOT_IN_DSH_GROUP',
         `标签页 ${tabId} 不在 ${state.groupTitle} 分组内`,
-        '只操作 DSH 分组里的标签页；需要新页面时用 browser_navigate 或 browser_tabs action=open。',
+        '只操作 DSH 分组里的标签页；需要新页面时用 browser_navigate 或 browser_tabs action=open。若这是来自组外个人标签页的网页注释，直接使用注释截图/证据，不要为了核对而重开页面。',
       )
     }
     try {
@@ -360,6 +360,22 @@
     } catch {
       throw new ExtError('TAB_GONE', `标签页 ${tabId} 已不存在`, '重新调用 browser_tabs action=list。')
     }
+  }
+
+  async function assertReadableTab(tabId) {
+    if (state.mode === 'readonly') {
+      try { return await browser.tabs.get(tabId) } catch {
+        throw new ExtError('TAB_GONE', `标签页 ${tabId} 已不存在`, '重新调用 browser_tabs action=list。')
+      }
+    }
+    return assertGroupTab(tabId)
+  }
+
+  async function listReadableTabs() {
+    const tabs = await browser.tabs.query({})
+    return tabs
+      .sort((left, right) => (left.windowId - right.windowId) || ((left.index || 0) - (right.index || 0)))
+      .map(tabSummary)
   }
 
   async function listGroupTabs() {
@@ -598,7 +614,7 @@
   }
 
   async function captureTab(tabId, format = 'png') {
-    await assertGroupTab(tabId)
+    await assertReadableTab(tabId)
     let dataUrl
     try {
       dataUrl = await browser.tabs.captureTab(tabId, { format })
@@ -633,7 +649,7 @@
 
     switch (op) {
       case 'tabs.list':
-        return listGroupTabs()
+        return state.mode === 'readonly' ? listReadableTabs() : listGroupTabs()
       case 'tabs.open':
         return openTabInGroup(params.url, params.active === true, params.windowId)
       case 'tabs.navigate':
@@ -646,19 +662,19 @@
       }
       case 'tabs.select': {
         const tabId = Number(params.tabId)
-        const tab = await assertGroupTab(tabId)
+        const tab = await assertReadableTab(tabId)
         await browser.tabs.update(tabId, { active: true })
         try { await browser.windows.update(tab.windowId, { focused: true }) } catch { /* ignore */ }
         return tabSummary(await browser.tabs.get(tabId))
       }
       case 'inspect': {
         const tabId = Number(params.tabId)
-        await assertGroupTab(tabId)
+        await assertReadableTab(tabId)
         return sendContent(tabId, 'inspect', { ref: params.ref })
       }
       case 'snapshot': {
         const tabId = Number(params.tabId)
-        await assertGroupTab(tabId)
+        await assertReadableTab(tabId)
         return sendContent(tabId, 'snapshot', { maxChars: params.maxChars })
       }
       case 'click': {
@@ -728,7 +744,7 @@
       }
       case 'scroll': {
         const tabId = Number(params.tabId)
-        await assertGroupTab(tabId)
+        await assertReadableTab(tabId)
         return sendContent(tabId, 'scroll', {
           direction: params.direction,
           amount: params.amount,
@@ -737,7 +753,7 @@
       }
       case 'wait': {
         const tabId = Number(params.tabId)
-        await assertGroupTab(tabId)
+        await assertReadableTab(tabId)
         return sendContent(tabId, 'wait', {
           text: params.text,
           selector: params.selector,
@@ -956,28 +972,31 @@
     }
     if (message?.type === 'dshuf:annotation-submit') {
       if (!sender?.tab?.id) return Promise.resolve({ ok: false, error: '缺少来源标签页' })
-      const payload = {
-        ...(message.payload || {}),
-        tabId: sender.tab.id,
-        page: {
-          url: message.payload?.page?.url || sender.tab.url || '',
-          title: message.payload?.page?.title || sender.tab.title || '',
-        },
-      }
-      return requestHost('annotation.create', payload, 60_000).then(
-        (data) => {
-          state.lastAnnotation = {
-            kind: payload.kind,
-            comment: String(payload.comment || '').slice(0, 300),
-            text: String(payload.text || '').slice(0, 300),
-            url: payload.page?.url || '',
-            at: new Date().toISOString(),
-          }
-          notify()
-          return { ok: true, data }
-        },
-        (error) => ({ ok: false, error: normalizeError(error).message }),
-      )
+      return isDshGroupTab(sender.tab.id).then((inDshGroup) => {
+        const payload = {
+          ...(message.payload || {}),
+          tabId: sender.tab.id,
+          inDshGroup,
+          page: {
+            url: message.payload?.page?.url || sender.tab.url || '',
+            title: message.payload?.page?.title || sender.tab.title || '',
+          },
+        }
+        return requestHost('annotation.create', payload, 60_000).then(
+          (data) => {
+            state.lastAnnotation = {
+              kind: payload.kind,
+              comment: String(payload.comment || '').slice(0, 300),
+              text: String(payload.text || '').slice(0, 300),
+              url: payload.page?.url || '',
+              at: new Date().toISOString(),
+            }
+            notify()
+            return { ok: true, data }
+          },
+          (error) => ({ ok: false, error: normalizeError(error).message }),
+        )
+      })
     }
     if (message?.type?.startsWith('dshuf:')) {
       return handleSidebarMessage(message)
