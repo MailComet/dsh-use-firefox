@@ -12,18 +12,18 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # 更新清单与 xpi 的公开地址前缀（目录 = 服务器上的 /var/www/dl/dsh-use-firefox）
+  UPDATE_BASE_URL: https://sxyz.dev/dl/dsh-use-firefox/
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,7 +87,7 @@ jobs:
           version=${{ steps.ver.outputs.version }}
           xpi=$(ls artifacts/*.xpi | head -n 1)
           mv "$xpi" "artifacts/dsh_use_firefox-$version.xpi"
-          # 稳定文件名，方便安装文档用 releases/latest/download/dsh_use_firefox.xpi
+          # 稳定文件名，安装文档可用 /dl/dsh-use-firefox/dsh_use_firefox.xpi
           cp "artifacts/dsh_use_firefox-$version.xpi" artifacts/dsh_use_firefox.xpi
           ls -l artifacts
 
@@ -102,38 +102,50 @@ jobs:
             || gh release create "v$version" --title "v$version" --generate-notes
           gh release upload "v$version" artifacts/*.xpi artifacts/*.tgz artifacts/*.zip --clobber
 
-  pages:
-    needs: release
-    if: ${{ !inputs.dry_run }}
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Assemble update site
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Build update site
+        if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          version=${{ needs.release.outputs.version }}
+          version=${{ steps.ver.outputs.version }}
           mkdir -p site
-          gh release download "v$version" --pattern '*.xpi' --dir site
-          node scripts/updates.mjs --version "$version" --out site/updates.json
+          cp "artifacts/dsh_use_firefox-$version.xpi" "artifacts/dsh_use_firefox.xpi" site/
+          node scripts/updates.mjs --version "$version" --out site/updates.json --base "$UPDATE_BASE_URL"
           cat site/updates.json
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
+      - name: Deploy to sxyz.dev
+        if: ${{ !inputs.dry_run }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_HOST:-}" ]; then
+            echo "::warning::未配置 DEPLOY_HOST，跳过上传（更新清单未发布）"
+            exit 0
+          fi
+          target=${DEPLOY_PATH:-/var/www/dl/dsh-use-firefox}
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/dsh_deploy
+          chmod 600 ~/.ssh/dsh_deploy
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$target'"
+          rsync -az --delete --chmod=D775,F664 \
+            -e "ssh -i ~/.ssh/dsh_deploy" \
+            site/ "$DEPLOY_USER@$DEPLOY_HOST:$target/"
+          ssh -i ~/.ssh/dsh_deploy "$DEPLOY_USER@$DEPLOY_HOST" "ls -l '$target'"
 
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Verify public URLs
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          version=${{ steps.ver.outputs.version }}
+          base="${UPDATE_BASE_URL%/}"
+          for url in "$base/updates.json" "$base/dsh_use_firefox-$version.xpi"; do
+            echo "== $url"
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)
+            echo "HTTP $code"
+            test "$code" = "200" || { echo "::error::$url 返回 $code"; exit 1; }
+          done
+          curl -sS "$base/updates.json"
