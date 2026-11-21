@@ -13,11 +13,11 @@
 
 ## 安装
 
-前置条件：DSH 桌面端 `0.2.2-rc.5`（官方当前最新版，本插件按该版本构建并实测；DSH 仍在 developer preview，升级到更高版本前先看 release notes）。Firefox `>= 142`（manifest 声明的最低版本；`142.0` 已验证安装/启动，日常实测在 `160.0.1`）。
+前置条件：DSH 桌面端 `0.2.2-rc.5`（官方当前最新版；本插件按该版本构建，日常在该版本使用。DSH 仍在 developer preview，升级到更高版本前先看 release notes）。Firefox `>= 142`（manifest 最低版本；`142.0` 上验证过源码扩展可安装/启动；日常在 `160.0.1` 使用）。
 
 ### 1. 宿主插件（DSH 侧）
 
-在 DSH 的 **设置 → 插件 → 添加插件** 里，安装源保持默认（`repo.nju.edu.cn`），地址粘贴稳定链接（始终指向最新版）：
+在 DSH 的 **设置 → 插件 → 添加插件** 里，安装源保持默认即可，地址粘贴稳定链接（始终指向最新版）：
 
 ```text
 https://sxyz.dev/dl/dsh/dsh-use-firefox.tgz
@@ -69,7 +69,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 https://sxyz.dev/dl/firefox/dsh-use-firefox/dsh_use_firefox.zip
 ```
 
-从 **v0.4.8** 起，扩展的 manifest 带 `update_url`，装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更新清单和稳定包地址：
+从 **v0.4.8** 起，扩展的 manifest 带 `update_url`；Firefox 会按它定期检查更新，发现更高版本就下载并升级，不需要你手动重装。更新清单和稳定包地址：
 
 ```text
 https://sxyz.dev/dl/firefox/dsh-use-firefox/updates.json
@@ -93,7 +93,7 @@ https://sxyz.dev/dl/firefox/dsh-use-firefox/SHA256SUMS
 | 部分 | 升级方式 |
 | --- | --- |
 | DSH 宿主插件 | 用同一条稳定地址再添加一次；没有更新按钮 |
-| Firefox 扩展 | 自动检查（约 24 小时一次），无需手动重装 |
+| Firefox 扩展 | 按 `update_url` 定期检查，无需手动重装 |
 
 点击 Firefox 工具栏上的 DSH Use FF 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
 
