@@ -116,7 +116,7 @@ test('queued annotations bind to the first focused session and filter others', a
   assert.equal(runtime.queueAnnotations('session-c').length, 0)
 })
 
-test('pre-step attaches one user context for each annotation mention', async (t) => {
+test('pre-step merges Qoder-style annotation evidence into the user message', async (t) => {
   const { runtime } = await makeRuntime(t)
   runtime.setFocusedSession('session-a')
   const created = await runtime.createAnnotation(null, payload())
@@ -128,15 +128,17 @@ test('pre-step attaches one user context for each annotation mention', async (t)
     content: [{ type: 'text', text: `请看一下\n@[网页注释 1](dsh-anno:${created.id})` }],
   }
   const messages = await runtime.prepareAnnotationMentions([user])
-  assert.equal(messages.length, 2)
-  assert.equal(messages[0], user)
-  const context = messages[1]
-  assert.equal(context.role, 'user')
-  const text = context.content.map((block) => block.text).join('\n')
-  assert.match(text, /【网页注释】/)
-  assert.match(text, /这个按钮太靠右了/)
+  assert.equal(messages.length, 1)
+  assert.equal(messages[0].role, 'user')
+  const text = messages[0].content.map((block) => block.text || '').join('\n')
+  assert.match(text, /请看一下/)
+  assert.doesNotMatch(text, /dsh-anno:/)
+  assert.doesNotMatch(text, /【网页注释】/)
+  assert.match(text, /<browser_annotation selection_kind="element">/)
+  assert.match(text, /<user_comment>这个按钮太靠右了<\/user_comment>/)
   assert.match(text, /https:\/\/example\.com\/form/)
   assert.match(text, /annotations\/.*\.png/)
+  assert.match(text, /"bounds":/)
 
   const again = await runtime.prepareAnnotationMentions([...messages])
   assert.equal(again.length, messages.length)
@@ -227,7 +229,7 @@ test('pending annotation numbers are compacted on delete and restart after send'
     content: [{ type: 'text', text: items.map((item) => item.mention).join('\n') }],
   }
   const output = await runtime.prepareAnnotationMentions([message])
-  assert.equal(output.length, 2)
+  assert.equal(output.length, 1)
   assert.equal(runtime.pendingAnnotationViews().length, 0)
 
   const next = await runtime.createAnnotation(null, payload({ comment: '下一批' }))
@@ -298,6 +300,46 @@ test('restarting the host archives an unsent batch and starts a fresh one', asyn
     assert.equal(next.seq, 1)
   } finally {
     await second.dispose()
+    await rm(home, { recursive: true, force: true })
+  }
+})
+
+test('pre-step attaches the annotation screenshot as an image block', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dshuf-annotation-image-'))
+  const ctx = {
+    logger: { info() {}, warn() {}, debug() {} },
+    get(name) {
+      if (name !== 'attachments') return undefined
+      return {
+        saveImage: async ({ data, mediaType }) => ({
+          attachmentId: 'sha256:test-image',
+          mediaType,
+          bytes: data.length,
+          width: 96,
+          height: 96,
+        }),
+      }
+    },
+  }
+  const runtime = await createRuntime(ctx, { home, mode: 'full', bridgePort: 0, audit: false })
+  try {
+    runtime.setFocusedSession('session-a')
+    const created = await runtime.createAnnotation(null, payload())
+    runtime.queueAnnotations('session-a')
+    runtime.ackAnnotations([created.id])
+    const messages = await runtime.prepareAnnotationMentions([{
+      role: 'user',
+      content: [{ type: 'text', text: `@[网页注释 1](dsh-anno:${created.id})` }],
+    }])
+    assert.equal(messages.length, 1)
+    const blocks = messages[0].content
+    assert.ok(blocks.some((block) => block.type === 'image' && block.attachment.attachmentId === 'sha256:test-image'))
+    const text = blocks.filter((block) => block.type === 'text').map((block) => block.text).join('\n')
+    assert.match(text, /<browser_annotation selection_kind="element">/)
+    assert.doesNotMatch(text, /截图:/)
+    assert.doesNotMatch(text, /dsh-anno:/)
+  } finally {
+    await runtime.dispose()
     await rm(home, { recursive: true, force: true })
   }
 })

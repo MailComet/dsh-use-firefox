@@ -635,6 +635,26 @@
     try { return CSS.escape(String(value)) } catch { return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&') }
   }
 
+  function targetPathOf(element) {
+    if (!(element instanceof Element)) return ''
+    const parts = []
+    let current = element
+    let depth = 0
+    while (current && current.nodeType === 1 && depth < 16) {
+      let part = current.tagName.toLowerCase()
+      const parent = current.parentElement
+      if (parent) {
+        const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === current.tagName)
+        if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(current) + 1})`
+      }
+      parts.unshift(part)
+      if (current === document.body) break
+      current = parent
+      depth += 1
+    }
+    return parts.join(' > ')
+  }
+
   function selectorOf(element) {
     if (!(element instanceof Element)) return ''
     if (element.id) return `#${cssEscape(element.id)}`
@@ -1451,7 +1471,17 @@ const ANNO_ICONS = {
       if (!capture?.ok || !capture.dataUrl) throw new Error(capture?.error || '无法截取页面')
       let imageDataUrl = capture.dataUrl
       try {
-        imageDataUrl = await cropDataUrl(capture.dataUrl, rect, viewportWidth, viewportHeight)
+        const pad = 8
+        const left = Math.max(0, rect.x - pad)
+        const top = Math.max(0, rect.y - pad)
+        const right = Math.min(viewportWidth, rect.x + rect.width + pad)
+        const bottom = Math.min(viewportHeight, rect.y + rect.height + pad)
+        imageDataUrl = await cropDataUrl(capture.dataUrl, {
+          x: left,
+          y: top,
+          width: Math.max(1, right - left),
+          height: Math.max(1, bottom - top),
+        }, viewportWidth, viewportHeight)
       } catch { /* use the full screenshot */ }
       const selected = draft.selected
       const payload = {
@@ -1459,6 +1489,7 @@ const ANNO_ICONS = {
         requestId: draft.requestId || undefined,
         comment: ui.textarea.value.trim(),
         selector: selected ? selectorOf(selected) : '',
+        targetPath: selected ? targetPathOf(selected) : '',
         tag: selected?.tagName?.toLowerCase() || (draft.kind === 'region' ? 'region' : 'text'),
         text: draft.selectedText || collapse(selected?.innerText || selected?.textContent || '', 2000),
         html: selected ? String(selected.outerHTML || '').slice(0, 4000) : '',

@@ -26,7 +26,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.3/dsh-use-firefox-0.3.3.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.0/dsh-use-firefox-0.4.0.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +39,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.3/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.3.3.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.4.0.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -103,7 +103,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 - **完全访问是默认模式，没有逐动作审批。** 页面内容可能包含提示注入；请保持 DSH 组可见，必要时使用急停，或在银行、邮箱、支付等敏感站点切到 `auto` / `readonly`。
 - Firefox 内部页、扩展商店和受保护页面不能被脚本操作。
 - 上传、下载、网络面板和任意页面 JS 执行不在当前范围。
-- 截图保存在本地。模型收到的是路径而不是像素；需要视觉判断时调用 `read_image`。
+- 浏览器截图工具返回本地路径；注释截图会作为图片附件直接发送给模型，并附带 `<browser_annotation>` 证据。
 
 ## 开发
 
