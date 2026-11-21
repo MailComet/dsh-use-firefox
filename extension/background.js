@@ -969,6 +969,19 @@
     return undefined
   })
 
+  browser.commands.onCommand.addListener((command) => {
+    if (command !== 'start-annotation') return
+    if (state.paused) {
+      state.error = '浏览器已被用户急停'
+      notify()
+      return
+    }
+    startAnnotationOnActiveTab(state.annotationMode).catch((error) => {
+      state.error = normalizeError(error).message
+      notify()
+    })
+  })
+
   browser.tabs.onCreated.addListener((tab) => {
     const openerId = tab.openerTabId
     if (!openerId) return

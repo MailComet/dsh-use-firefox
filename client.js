@@ -309,7 +309,7 @@ window.__ModuleLoader__.load({
           { className: 'dshuf-settings-card' },
           h('h3', null, '注释'),
           choices(ANNOTATION_MODE_OPTIONS, data?.annotationMode, (mode) => act(ANNOTATION_MODE_PATH, { mode })),
-          h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Shift + A，再按 N 开始注释；Esc 退出。每次发送后，网页标记清除，下一批注释从 1 重新编号。'),
+          h('p', { className: 'dshuf-settings-hint' }, '在 Firefox 网页上按 Ctrl + Alt + A（macOS 为 MacCtrl + Alt + A）开始注释；Esc 退出。每次发送后，网页标记清除，下一批注释从 1 重新编号。'),
         ),
         h(
           'section',

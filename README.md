@@ -26,7 +26,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-fi
 需要固定版本时，用本页 Release 里的版本化资产：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.0/dsh-use-firefox-0.3.0.tgz
+https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.1/dsh-use-firefox-0.3.1.tgz
 ```
 
 通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
@@ -39,7 +39,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.3.0/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.3.0.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-0.3.1.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -71,7 +71,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 
 ## 注释
 
-在 Firefox 网页上按 **Shift + A**，再按 **N** 开始注释；用 **Esc** 退出。连接、模式、注释方式和状态在 DSH → 插件 → dsh-use-firefox 中设置。
+在 Firefox 网页上按 **Ctrl + Alt + A**（macOS 为 **MacCtrl + Alt + A**）开始注释；用 **Esc** 退出。连接、模式、注释方式和状态在 DSH → 插件 → dsh-use-firefox 中设置。
 
 页面进入选择状态后：
 

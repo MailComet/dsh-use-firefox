@@ -16,5 +16,5 @@ This extension is the browser half of the `dsh-use-firefox` DSH plugin. It conne
 - Page snapshots, actions, and annotation data go to the DSH host plugin on the same machine. There is no cloud service and no telemetry.
 - The host plugin writes audit records and screenshots under `~/.dsh/browser/`. The extension does not upload page content anywhere else.
 - The toolbar popup is an introduction panel. First-time connection fields appear there only while the extension is not connected; connection, mode, and annotation settings live in DSH → Plugins → dsh-use-firefox.
-- A small hotkey content script runs on http(s) pages only to listen for Shift+A then N; it does not read page content. It asks the background to start annotation mode, and the full annotation UI is injected on demand.
+- The annotation shortcut is a Firefox extension command (Ctrl+Alt+A; MacCtrl+Alt+A on macOS), so it works without injecting a page hotkey script and can be rebound in about:addons.
 - Confirming an annotation puts a chip into the DSH composer; the message is sent only when the user submits it. Sent historical cards are read-only.
