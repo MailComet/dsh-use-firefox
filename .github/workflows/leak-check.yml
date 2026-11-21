@@ -1,0 +1,16 @@
+name: Privacy check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan tracked files for infrastructure details
+        # 拦下会被公开的 IP、服务器路径、ssh 目标与凭据前缀
+        run: bash scripts/check-public-leak.sh
