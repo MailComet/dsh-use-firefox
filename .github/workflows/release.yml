@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只校验和打包，不签名、不发布
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve and check version
+        id: ver
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./extension/manifest.json').version")
+          pkg=$(node -p "require('./package.json').version")
+          if [ "$version" != "$pkg" ]; then
+            echo "::error::package.json ($pkg) 与 extension/manifest.json ($version) 版本不一致"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与版本 $version 不一致"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Lint extension
+        # --self-hosted：本扩展走 AMO 未列出（unlisted）渠道，manifest 才允许带 update_url
+        run: npx --yes web-ext@10 lint --self-hosted --source-dir extension
+
+      - name: Build packages
+        run: |
+          set -euo pipefail
+          version=${{ steps.ver.outputs.version }}
+          mkdir -p artifacts
+          (cd extension && zip -X -r -9 "../artifacts/dsh_use_firefox-$version.zip" . -x '.*')
+          npm pack --pack-destination artifacts >/dev/null
+          mv "artifacts/dsh-use-firefox-$version.tgz" artifacts/dsh-use-firefox.tgz
+          ls -l artifacts
+
+      - name: Sign extension (AMO unlisted)
+        if: ${{ !inputs.dry_run }}
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEB_EXT_API_KEY:-}" ] || [ -z "${WEB_EXT_API_SECRET:-}" ]; then
+            echo "::error::缺少仓库 secret AMO_JWT_ISSUER / AMO_JWT_SECRET（AMO 开发者中心的 API 凭据）"
+            exit 1
+          fi
+          npx --yes web-ext@10 sign \
+            --channel=unlisted \
+            --source-dir extension \
+            --artifacts-dir artifacts \
+            --timeout 900000
+
+      - name: Normalize signed xpi
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          version=${{ steps.ver.outputs.version }}
+          xpi=$(ls artifacts/*.xpi | head -n 1)
+          mv "$xpi" "artifacts/dsh_use_firefox-$version.xpi"
+          # 稳定文件名，方便安装文档用 releases/latest/download/dsh_use_firefox.xpi
+          cp "artifacts/dsh_use_firefox-$version.xpi" artifacts/dsh_use_firefox.xpi
+          ls -l artifacts
+
+      - name: Publish GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=${{ steps.ver.outputs.version }}
+          gh release view "v$version" >/dev/null 2>&1 \
+            || gh release create "v$version" --title "v$version" --generate-notes
+          gh release upload "v$version" artifacts/*.xpi artifacts/*.tgz artifacts/*.zip --clobber
+
+  pages:
+    needs: release
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Assemble update site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=${{ needs.release.outputs.version }}
+          mkdir -p site
+          gh release download "v$version" --pattern '*.xpi' --dir site
+          node scripts/updates.mjs --version "$version" --out site/updates.json
+          cat site/updates.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

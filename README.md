@@ -41,7 +41,7 @@ https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.7/dsh-use-fi
 
 ### 2. Firefox 扩展
 
-Release 资产里的 `dsh_use_firefox-0.4.7.zip` 是未签名包，正式版 Firefox 不能直接安装。
+Release 资产里的 `dsh_use_firefox-<版本>.zip` 是未签名包，正式版 Firefox 不能直接安装。
 
 **临时加载**：打开 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on** → 选择仓库里的 `extension/manifest.json`。Firefox 重启后需要重新加载。
 
@@ -53,6 +53,14 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 ```
 
 拿到生成的 `.xpi` 后，在 `about:addons` → 齿轮 → **Install Add-on From File** 安装。
+
+也可以直接下载每次 Release 里已经签好名的稳定链接（指向最新版本）：
+
+```text
+https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh_use_firefox.xpi
+```
+
+从 **v0.4.8** 起，扩展的 manifest 带 `update_url`（`https://mailcomet.github.io/dsh-use-firefox/updates.json`）。装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更早装上、没有这个字段的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
 
 点击 Firefox 工具栏上的 DSH Use Firefox 图标打开介绍弹窗；只有首次连接时，展开「首次连接」填入：
 
@@ -108,6 +116,35 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 - Firefox 内部页、扩展商店和受保护页面不能被脚本操作。
 - 上传、下载、网络面板和任意页面 JS 执行不在当前范围。
 - 浏览器截图工具返回本地路径；注释截图会作为图片附件直接发送给模型，并附带 `<browser_annotation>` 证据。
+
+## 发布
+
+版本号在 `package.json` 和 `extension/manifest.json` 两处，必须一致。之后打 tag 推送，`.github/workflows/release.yml` 会完成剩下的全部步骤：
+
+```sh
+# 1. 改两处版本号
+# 2. 提交、打 tag、推送
+git commit -am "chore: release v0.4.8"
+git tag v0.4.8
+git push origin main --tags
+```
+
+工作流依次做这些事：
+
+1. 校验两处版本号与 tag 一致（不一致直接失败，避免把错版本签出去）；
+2. `web-ext lint --self-hosted` —— 只有自发行（unlisted）渠道才允许 manifest 带 `update_url`；
+3. 打包 `dsh_use_firefox-<版本>.zip` 和 npm tarball；
+4. 用 AMO 凭据签名（`--channel=unlisted`）；
+5. 建/更新 GitHub Release，上传签名 `.xpi`、稳定名 `dsh_use_firefox.xpi`、tarball 和 zip；
+6. 重新生成 `updates.json` 部署到 GitHub Pages，已安装的扩展据此自动升级。
+
+### 一次性配置
+
+- **AMO 凭据**：在 <https://addons.mozilla.org/en-US/developers/addon/api/key/> 生成 JWT issuer / secret（开发者账号需已开启两步验证），然后加到仓库 **Settings → Secrets and variables → Actions**：`AMO_JWT_ISSUER`、`AMO_JWT_SECRET`。
+- **GitHub Pages**：**Settings → Pages → Source** 选 **GitHub Actions**。
+- 同一个版本号在 AMO 只能提交一次；重复提交会报 `version already exists`，此时把版本号加一再发。
+
+只想验证构建、不想签名和发布时，在 Actions 里手动触发 `Release` 并勾上 `dry_run`。
 
 ## 开发
 

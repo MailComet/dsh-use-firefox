@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "DSH Use Firefox",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Let DeepSeek Harness operate your real Firefox through the DSH Use Firefox host plugin.",
   "browser_specific_settings": {
     "gecko": {
       "id": "dsh-use-firefox@sxyz.dev",
       "strict_min_version": "142.0",
+      "update_url": "https://mailcomet.github.io/dsh-use-firefox/updates.json",
       "data_collection_permissions": {
         "required": [
           "none"
