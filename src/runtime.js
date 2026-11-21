@@ -82,7 +82,7 @@ export class Runtime {
     this.focusedSessionId = null
     this.annotationMode = 'element'
     this.started = false
-    this.pluginVersion = '0.4.1'
+    this.pluginVersion = '0.4.2'
     this.groupTitle = config.groupTitle || 'DSH'
     this.groupColor = config.groupColor || 'blue'
     this.requestTimeoutMs = Number(config.requestTimeoutMs || 60_000)
