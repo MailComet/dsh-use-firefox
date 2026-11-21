@@ -17,21 +17,23 @@
 
 ### 1. 宿主插件
 
-在 DSH 的 **设置 → 插件 → 添加插件** 里，安装源保持默认（`repo.nju.edu.cn`），地址粘贴：
+在 DSH 的 **设置 → 插件 → 添加插件** 里，安装源保持默认（`repo.nju.edu.cn`），地址粘贴稳定链接（始终指向最新版）：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/latest/download/dsh-use-firefox.tgz
+https://sxyz.dev/dl/dsh-use-firefox.tgz
 ```
 
 装好后重启 DSH。新增的输入框 chip 逻辑在客户端启动时加载。
 
-需要固定版本时，用本页 Release 里的版本化资产：
+要固定版本时，用版本化地址（回滚、复现都靠它）：
 
 ```text
-https://github.com/MailComet/dsh-use-firefox/releases/download/v0.4.7/dsh-use-firefox-0.4.7.tgz
+https://sxyz.dev/dl/dsh-use-firefox-0.4.8.tgz
 ```
 
-通过 tarball 安装的插件没有“更新”按钮，升级时用新版本的地址重新安装即可。
+GitHub Release 里有同样的资产（`releases/latest/download/dsh-use-firefox.tgz` 或按 tag 取版本化文件），`https://sxyz.dev/dl/SHA256SUMS` 可核对校验和。
+
+通过 tarball 安装的插件没有“更新”按钮，升级时**用同一条稳定链接再添加一次**即可（`pnpm add` 会重新下载并替换，实测同一 URL 内容更新后能升到新版本）；只跑 `pnpm install` 可能受 lockfile 完整性约束，不要用那种方式升级。
 
 桥默认监听 `127.0.0.1:39271`。首次运行会生成 token：
 
