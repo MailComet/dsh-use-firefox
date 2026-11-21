@@ -61,7 +61,7 @@ npx web-ext sign --source-dir extension --channel unlisted --artifacts-dir dist
 
 从 **v0.4.8** 起，扩展的 manifest 带 `update_url`（`https://sxyz.dev/dl/dsh-use-firefox/updates.json`）。装好之后 Firefox 大约每 24 小时检查一次，发现更高版本就自动下载、自动升级，不需要你手动重装。更早装上、没有这个字段的版本，必须手动装一次 v0.4.8 之后才会进入自动更新。
 
-签名包和更新清单托管在自己的静态服务器上（静态直出），不依赖 GitHub Pages：
+签名包和更新清单托管在自己控制的静态目录里，不依赖 GitHub Pages：
 
 ```text
 https://sxyz.dev/dl/dsh-use-firefox/updates.json
