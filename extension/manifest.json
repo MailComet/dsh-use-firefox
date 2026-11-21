@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DSH Use Firefox",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Let DeepSeek Harness operate your real Firefox through the DSH Use Firefox host plugin.",
   "browser_specific_settings": {
     "gecko": {

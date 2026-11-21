@@ -8,6 +8,7 @@ window.__ModuleLoader__.load({
   id: 'dsh-use-firefox',
   factory(require) {
     const React = require('react')
+    const ReactDOM = require('react-dom')
     const h = React.createElement
 
     const QUEUE_PATH = '/ext/use-firefox/queue'
@@ -34,10 +35,14 @@ window.__ModuleLoader__.load({
 .dshuf-list { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .dshuf-list .dshuf-card { flex: 1 1 280px; width: auto; max-width: 340px; }
 .dshuf-card { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); cursor: pointer; box-sizing: border-box; }
+.dshuf-inline-wrap { position: absolute; top: 8px; left: 12px; right: 12px; z-index: 25; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+[data-composer-card]:has(.dshuf-inline-wrap) { padding-top: calc(8px + var(--dshuf-inline-height, 0px) + 12px); }
+.dshuf-inline-wrap .dshuf-list { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; }
+.dshuf-inline-wrap .dshuf-card { width: min(100%, 280px); max-width: 280px; flex: none; align-self: flex-start; background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 4%, var(--dsw-alias-bg-elevated, #fff)); border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 20%, var(--dsw-alias-border-secondary, #e5e7eb)); box-shadow: 0 2px 8px rgba(15, 23, 42, .04); }
 .dshuf-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 35%, var(--dsw-alias-border-secondary, #e5e7eb)); }
 .dshuf-card.editing { align-items: stretch; background: var(--dsw-alias-bg-elevated, #fff); }
-.dshuf-history { display: flex; width: min(100%, 360px); max-width: 360px; margin-top: 7px; }
-.dshuf-history .dshuf-thumb { width: 68px; height: 46px; }
+.dshuf-history { display: flex; width: min(100%, 280px); max-width: 280px; margin-top: 7px; }
+.dshuf-history .dshuf-thumb { width: 56px; height: 38px; }
 .dshuf-thumb { width: 58px; height: 40px; flex: none; object-fit: cover; border-radius: 6px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); background: var(--dsw-alias-bg-secondary, #f8fafc); }
 .dshuf-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--dsw-alias-label-secondary, #6b7280); text-align: center; }
 .dshuf-card-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -844,6 +849,9 @@ window.__ModuleLoader__.load({
 
     function Dock({ sessionId, input, inputActions }) {
       const [cards, setCards] = React.useState([])
+      const [portalHost, setPortalHost] = React.useState(null)
+      const hostRef = React.useRef(null)
+      const wrapRef = React.useRef(null)
       const seenDraft = React.useRef(false)
       const latest = React.useRef({ input, inputActions })
       React.useEffect(() => { latest.current = { input, inputActions } })
@@ -851,6 +859,37 @@ window.__ModuleLoader__.load({
         seenDraft.current = false
         setCards([])
       }, [sessionId])
+
+      React.useEffect(() => {
+        const ensure = () => {
+          if (hostRef.current?.isConnected) return
+          const anchor = document.querySelector('[data-composer-overlay]')
+          if (anchor) {
+            hostRef.current = anchor
+            setPortalHost(anchor)
+          }
+        }
+        ensure()
+        const timer = setInterval(ensure, 1000)
+        return () => clearInterval(timer)
+      }, [sessionId])
+
+      React.useEffect(() => {
+        if (!portalHost || !wrapRef.current) return undefined
+        const card = portalHost.closest('[data-composer-card]')
+        if (!card) return undefined
+        const update = () => {
+          const height = wrapRef.current?.offsetHeight || 0
+          card.style.setProperty('--dshuf-inline-height', `${height}px`)
+        }
+        update()
+        const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(update) : null
+        observer?.observe(wrapRef.current)
+        return () => {
+          observer?.disconnect()
+          card.style.removeProperty('--dshuf-inline-height')
+        }
+      }, [portalHost, cards.length])
 
       React.useEffect(() => {
         if (typeof sessionId !== 'string' || sessionId === '') return undefined
@@ -944,20 +983,27 @@ window.__ModuleLoader__.load({
       }
 
       if (typeof sessionId !== 'string' || sessionId === '' || cards.length === 0) return null
+      const list = h(
+        'div',
+        { className: 'dshuf-list' },
+        cards.map((item) => h(AnnotationCard, {
+          key: item.id,
+          item,
+          onSaved: updateCard,
+          onDeleted: removeCard,
+        })),
+      )
+      if (ReactDOM && typeof ReactDOM.createPortal === 'function' && portalHost) {
+        return ReactDOM.createPortal(
+          h('div', { className: 'dshuf-inline-wrap', ref: wrapRef }, list),
+          portalHost,
+        )
+      }
       return h(
         'div',
         { className: 'dshuf-dock' },
         h('div', { className: 'dshuf-summary' }, `${cards.length} 条注释`),
-        h(
-          'div',
-          { className: 'dshuf-list' },
-          cards.map((item) => h(AnnotationCard, {
-            key: item.id,
-            item,
-            onSaved: updateCard,
-            onDeleted: removeCard,
-          })),
-        ),
+        list,
       )
     }
 
