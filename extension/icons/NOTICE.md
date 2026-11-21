@@ -1,10 +1,5 @@
 # Icon notice
 
-The DSH Use Firefox icon is an original DF monogram on an AI-style gradient background.
+The DSH Use Firefox icon is a minimal light-gray rounded tile with a black U mark, matching the requested reference.
 
-- D uses a blue/cyan palette inspired by DeepSeek.
-- F uses an orange/pink palette inspired by Firefox.
-- The letterforms, glow, grid, and composition are original.
-- It does not include the official Firefox, Mozilla, or DeepSeek logos.
-
-The icon is distributed with the extension under the project's MIT license.
+It contains no official Firefox, Mozilla, or DeepSeek brand artwork. The icon is distributed with the extension under the project's MIT license.
