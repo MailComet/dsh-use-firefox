@@ -134,7 +134,7 @@ test('pre-step merges Qoder-style annotation evidence into the user message', as
   assert.match(text, /请看一下/)
   assert.doesNotMatch(text, /dsh-anno:/)
   assert.doesNotMatch(text, /【网页注释】/)
-  assert.match(text, /<browser_annotation selection_kind="element">/)
+  assert.match(text, /<browser_annotation annotation_id="anno-[^"]+" selection_kind="element">/)
   assert.match(text, /<user_comment>这个按钮太靠右了<\/user_comment>/)
   assert.match(text, /https:\/\/example\.com\/form/)
   assert.match(text, /annotations\/.*\.png/)
@@ -335,7 +335,7 @@ test('pre-step attaches the annotation screenshot as an image block', async () =
     const blocks = messages[0].content
     assert.ok(blocks.some((block) => block.type === 'image' && block.attachment.attachmentId === 'sha256:test-image'))
     const text = blocks.filter((block) => block.type === 'text').map((block) => block.text).join('\n')
-    assert.match(text, /<browser_annotation selection_kind="element">/)
+    assert.match(text, /<browser_annotation annotation_id="anno-[^"]+" selection_kind="element">/)
     assert.doesNotMatch(text, /截图:/)
     assert.doesNotMatch(text, /dsh-anno:/)
   } finally {

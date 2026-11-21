@@ -24,6 +24,8 @@ window.__ModuleLoader__.load({
     const ANNOTATION_START_PATH = '/ext/use-firefox/annotation-start'
     const TOKEN_PATH = '/ext/use-firefox/token'
     const WIRE = /@\[((?:\\.|[^\\\]\n])*)\]\(dsh-anno:([A-Za-z0-9_-]+)\)/uy
+    const ANNO_BLOCK = /<browser_annotation\b([^>]*)>([\s\S]*?)<\/browser_annotation>(?:\nDSH:[^\n]*)?(?:\n\n截图:[^\n]*)?/g
+    const ANNO_BLOCK_ID = /\bannotation_id="([A-Za-z0-9_-]+)"/
     const POLL_MS = 2000
 
     const CSS = `
@@ -34,8 +36,8 @@ window.__ModuleLoader__.load({
 .dshuf-card { display: flex; gap: 8px; align-items: flex-start; min-width: 0; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); border-radius: 10px; background: var(--dsw-alias-bg-elevated, #fff); cursor: pointer; box-sizing: border-box; }
 .dshuf-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary, #2563eb) 35%, var(--dsw-alias-border-secondary, #e5e7eb)); }
 .dshuf-card.editing { align-items: stretch; background: var(--dsw-alias-bg-elevated, #fff); }
-.dshuf-history { display: flex; width: 100%; max-width: none; margin-top: 7px; }
-.dshuf-history .dshuf-thumb { width: 72px; height: 48px; }
+.dshuf-history { display: flex; width: min(100%, 360px); max-width: 360px; margin-top: 7px; }
+.dshuf-history .dshuf-thumb { width: 68px; height: 46px; }
 .dshuf-thumb { width: 58px; height: 40px; flex: none; object-fit: cover; border-radius: 6px; border: 1px solid var(--dsw-alias-border-secondary, #e5e7eb); background: var(--dsw-alias-bg-secondary, #f8fafc); }
 .dshuf-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--dsw-alias-label-secondary, #6b7280); text-align: center; }
 .dshuf-card-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -109,6 +111,26 @@ window.__ModuleLoader__.load({
             start,
             end: start + found[0].length,
             data: { id: found[2], label: unescapeLabel(found[1]) },
+          }
+        }
+        return undefined
+      },
+    }
+
+    const annoBlockRule = {
+      id: 'dshuf-anno-block',
+      order: 19,
+      match(text, from) {
+        for (let start = text.indexOf('<browser_annotation', from); start >= 0; start = text.indexOf('<browser_annotation', start + 1)) {
+          ANNO_BLOCK.lastIndex = start
+          const found = ANNO_BLOCK.exec(text)
+          if (found === null || found.index !== start || !found[2].includes('<user_comment>')) continue
+          const id = ANNO_BLOCK_ID.exec(found[1])?.[1] || null
+          return {
+            id: 'dshuf-anno-block',
+            start,
+            end: start + found[0].length,
+            data: { id },
           }
         }
         return undefined
@@ -768,6 +790,58 @@ window.__ModuleLoader__.load({
       })
     }
 
+    function decodeAnnotationText(value) {
+      return String(value || '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+    }
+
+    function annotationFromBlock(raw, id) {
+      const comment = decodeAnnotationText(/<user_comment>([\s\S]*?)<\/user_comment>/.exec(raw)?.[1] || '')
+      let evidence = null
+      const evidenceText = /<untrusted_page_evidence>([\s\S]*?)<\/untrusted_page_evidence>/.exec(raw)?.[1]
+      if (evidenceText) {
+        const start = evidenceText.indexOf('{')
+        const end = evidenceText.lastIndexOf('}')
+        if (start >= 0 && end > start) {
+          try { evidence = JSON.parse(evidenceText.slice(start, end + 1)) } catch { /* keep the visible fallback card */ }
+        }
+      }
+      const bounds = evidence?.bounds
+      return {
+        id: id || 'inline-annotation',
+        label: '网页注释',
+        comment,
+        page: evidence?.url ? { url: evidence.url, title: evidence.title || '' } : undefined,
+        selector: evidence?.selector || '',
+        tag: evidence?.tagName || '',
+        details: bounds && Number.isFinite(Number(bounds.width)) && Number.isFinite(Number(bounds.height))
+          ? { width: `${Math.round(Number(bounds.width))}px`, height: `${Math.round(Number(bounds.height))}px` }
+          : undefined,
+      }
+    }
+
+    function AnnoBlock({ node, raw }) {
+      const id = typeof node?.data?.id === 'string' ? node.data.id : ''
+      const [item, setItem] = React.useState(null)
+      React.useEffect(() => {
+        if (id === '') return undefined
+        let live = true
+        void getItem(id).then((value) => {
+          if (live && value) setItem(value)
+        }).catch(() => {})
+        return () => { live = false }
+      }, [id])
+      return h(AnnotationCard, {
+        item: item || annotationFromBlock(raw, id),
+        history: true,
+        readOnly: true,
+      })
+    }
+
     function Dock({ sessionId, input, inputActions }) {
       const [cards, setCards] = React.useState([])
       const seenDraft = React.useRef(false)
@@ -903,6 +977,7 @@ window.__ModuleLoader__.load({
         }, 'dsh-use-firefox: chip styles')
 
         ctx.effect(() => ctx.uiConversation.userText.register(annoRule), 'dsh-use-firefox: user text rule')
+        ctx.effect(() => ctx.uiConversation.userText.register(annoBlockRule), 'dsh-use-firefox: annotation block rule')
 
         ctx.effect(() => {
           const onClick = (event) => {
@@ -921,6 +996,7 @@ window.__ModuleLoader__.load({
 
         ctx.slots.inject('conversation.user.text.node', function* () {
           yield ctx.slots.register({ name: 'conversation.user.text.node', key: 'dshuf-anno', priority: 100 }, AnnoReference)
+          yield ctx.slots.register({ name: 'conversation.user.text.node', key: 'dshuf-anno-block', priority: 110 }, AnnoBlock)
         })
 
         ctx.slots.inject('conversation.input.dock', function* () {
